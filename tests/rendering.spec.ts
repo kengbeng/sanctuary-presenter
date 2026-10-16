@@ -384,8 +384,11 @@ test("Blank cancels an in-flight image preparation and cannot reveal it later", 
   await output.evaluate(delayImages);
   await page.getByRole("button", { name: "Show / Restore" }).click();
   await expect(
-    page.getByText("Preparing slide", { exact: true }),
+    page
+      .getByRole("region", { name: "Presentation controls", exact: true })
+      .getByText("Preparing slide", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("PREPARING", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Blank", exact: true }).click();
   await output.evaluate(async () => {
     await (
@@ -400,6 +403,7 @@ test("Blank cancels an in-flight image preparation and cannot reveal it later", 
     output.getByText("Do not reveal automatically", { exact: true }),
   ).not.toBeVisible();
   await expect(page.getByText("LIVE", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
 });
 test("broken video uses its prepared local poster fallback", async ({
   page,

@@ -344,18 +344,6 @@ function Operator() {
   const [phase, setPhase] = useState<Phase>("IDLE");
   const phaseRef = useRef<Phase>("IDLE");
   const sessionActive = !["IDLE", "STOPPED"].includes(phase);
-  const outputLabel =
-    phase === "LIVE"
-      ? "LIVE"
-      : ["READY_BLANK", "BLANKED"].includes(phase)
-        ? "OUTPUT BLACK"
-        : phase === "DISCONNECTED"
-          ? "DISCONNECTED"
-          : phase === "STOPPED"
-            ? "OUTPUT STOPPED"
-            : phase === "IDLE"
-              ? "OUTPUT CLOSED"
-              : "CONNECTING";
   useEffect(() => {
     if (["READY_BLANK", "BLANKED", "LIVE"].includes(phase)) setSetupOpen(false);
     if (["IDLE", "STOPPED"].includes(phase)) setSetupOpen(true);
@@ -674,6 +662,7 @@ function Operator() {
       return;
     }
     setSending(true);
+    setMediaState("Preparing slide");
     try {
       const frameId = await db.prepareFrame(page, currentSession);
       if (
@@ -796,6 +785,21 @@ function Operator() {
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [slide, view]);
+  const isPreparing =
+    sending || (desiredVisible.current && mediaState === "Preparing slide");
+  const outputLabel = isPreparing
+    ? "PREPARING"
+    : phase === "LIVE"
+      ? "LIVE"
+      : ["READY_BLANK", "BLANKED"].includes(phase)
+        ? "OUTPUT BLACK"
+        : phase === "DISCONNECTED"
+          ? "DISCONNECTED"
+          : phase === "STOPPED"
+            ? "OUTPUT STOPPED"
+            : phase === "IDLE"
+              ? "OUTPUT CLOSED"
+              : "CONNECTING";
   return (
     <div
       className={
@@ -916,7 +920,7 @@ function Operator() {
           <div className="section-heading">
             <div>
               <span className="eyebrow">
-                {phase === "LIVE" && !sending
+                {phase === "LIVE" && !isPreparing
                   ? "LIVE SLIDE · PREVIEW"
                   : "PENDING SLIDE · PREVIEW"}
               </span>
@@ -1078,12 +1082,15 @@ function Operator() {
       </main>
       <section className="live-controls" aria-label="Presentation controls">
         <div
-          className={"output-state state-" + phase.toLowerCase()}
+          className={
+            "output-state state-" +
+            (isPreparing ? "preparing" : phase.toLowerCase())
+          }
           role="status"
         >
           <strong>{outputLabel}</strong>
           <span>
-            {sending || mediaState === "Preparing slide"
+            {isPreparing
               ? "Preparing slide"
               : phase === "LIVE"
                 ? "Congregation output acknowledged"
@@ -1124,7 +1131,7 @@ function Operator() {
             className="show"
             disabled={
               view !== "present" ||
-              sending ||
+              isPreparing ||
               !frames.length ||
               !["READY_BLANK", "BLANKED", "LIVE"].includes(phase)
             }
