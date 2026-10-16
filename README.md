@@ -62,3 +62,11 @@ python3 -m unittest discover -s tools/tests
 Only library format 1 / database schema 15 is supported. SQLite input requires Python 3.11 or newer and a consistent schema-15 backup. The tool leaves its source untouched and refuses existing output files. In v2, export your current full backup, stop presentations, then use **Library & planner → Restore backup**. This replaces the local library; it does not merge. Inspect the conversion report and rehearse text/media before use. Original export JSON is retained and downloadable from the report. Keep the original `.splibrary`, including any deleted media bytes.
 
 See [conversion scope and limitations](docs/V1_CONVERSION.md). For a closed SQLite backup, use `--database` instead of `--library` and supply `--media-root` or `--path-map` for active media. See the conversion guide for examples. History/settings/deleted rows remain inspectable archival data. Add repeatable `--service` inputs for schema-9 service JSON or `.spservice` packages, either alone or alongside a library/database. For example: `python3 tools/convert_v1.py --library library.splibrary --service sunday.spservice --output converted.zip`. Service snapshots remain independent; converted designs are explicit per-slide values. EasiSlides and active historical-data migration remain pending.
+
+Production smoke check (after deployment, with Chromium installed):
+
+```sh
+node scripts/smoke-deployed.mjs
+```
+
+This checks the live HTTPS subpath, manifest, offline reload and black-first dual-window Show/Blank/Stop flow in a clean browser context. The first GitHub Actions build and Pages deployment passed; see the verification record for immutable run details. Local Git pushes require GitHub authentication; Actions uses its built-in repository token.
