@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.local
+
+.pnpm-store/
+test-results/
+playwright-report/
+
+.DS_Store
+
+__pycache__/

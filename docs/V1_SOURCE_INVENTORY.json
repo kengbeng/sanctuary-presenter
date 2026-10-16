@@ -1,0 +1,46 @@
+{
+  "archive": "Sanctuary_Presenter_v1.0.0-rc2_full.zip",
+  "sha256": "de5509ead8b4e891564d0e456c57124e77a8c7706982757bff398e078cf43f26",
+  "inspection": "read-only ZIP reads and AST parsing; no source execution",
+  "database_schema_from_code": 15,
+  "service_schema_from_code": 9,
+  "bundled_database_or_portable_data": [],
+  "sources": [
+    {
+      "file": "app.py",
+      "sha256": "7066529f7447755dac7bc215cac726b506ca3bdc9a87355f32b06f8b448d7823",
+      "lines": 15065,
+      "test_methods": 1
+    },
+    {
+      "file": "database.py",
+      "sha256": "dffe4fc6f8f61cb5e3a01a11d96d48fdfac29c8ccc3e7f32c4c99d7039164cb2",
+      "lines": 2792,
+      "test_methods": 0
+    },
+    {
+      "file": "presentation_typography.py",
+      "sha256": "e25284e812640a36fe1d9103441a9bb3c67b8b592d8fee3aba30a823dd65015f",
+      "lines": 2100,
+      "test_methods": 0
+    },
+    {
+      "file": "test_core.py",
+      "sha256": "445de8cf19c84372bd5b048f48bafb0c91b1d1c3719006f9a10dd7f09711e1cd",
+      "lines": 3551,
+      "test_methods": 201
+    },
+    {
+      "file": "typography_widgets.py",
+      "sha256": "9eaeb6433d9c763b5192ab85abdca2d6e57655e9d763666f3b9219e568d68e26",
+      "lines": 271,
+      "test_methods": 0
+    },
+    {
+      "file": "video_backgrounds.py",
+      "sha256": "2a9847a5e4918d743beeb2dac6b6ea6a609028b76b5bd0bc308866505f27da54",
+      "lines": 1461,
+      "test_methods": 0
+    }
+  ]
+}

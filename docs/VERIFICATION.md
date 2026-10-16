@@ -1,0 +1,107 @@
+# Verification — 16 October 2026
+
+## Scope
+
+Phase 0 discovery documentation and Phase 1 sample-only PWA proof of concept. No v1 source was supplied. No full library, user-media, backup/restore or migration functionality is claimed.
+
+## Passed locally
+
+- Clean `npm ci` using committed npm lockfile; dependency audit: 0 known vulnerabilities at verification time. A transitive glob deprecation notice remains; macOS optional fsevents install script was not required for production build/tests.
+- Strict TypeScript typecheck and ESLint.
+- Vitest: 4 tests, covering malformed/wrong-session protocol payloads, stale/duplicate sequences, safe state transitions, startup/recovery blank and stop across named states.
+- Vite production build and asset/PWA validation for both `/` and `/sanctuary-presenter/`: script/style paths, existing icons, manifest id/start_url/scope and service worker prompt-update generation.
+- Playwright Chromium 156 (headless, macOS host), 5 integration tests:
+  1. Blank startup, output acknowledgement, Show, navigation, Blank, Restore, output refresh, disconnect, blank reconnect and Stop. No captured output-page runtime errors.
+  2. Cached app reload with network disabled; offline output popup, deliberate test pattern, content isolation, Blank and test-window close recovery.
+  3. Direct output URL remains black; simulated popup blocking produces actionable disconnected status.
+  4. Simulated multiple secondary screens require operator selection; selected-screen session starts blank.
+  5. Replaced output is blanked/quarantined; wrong-session messages cannot reveal it; blank plus pending navigation remains black.
+- Operator screenshot inspected at 1280px width (`operator-preview.png`).
+
+## User-reported physical checks
+
+On 16 October 2026, the user confirmed the five guided Safari/macOS extended-display startup steps: Manual output opens, starts completely black, can be moved to the second display, enters fullscreen using the in-window control, and leaves the operator accessible. Browser/OS versions were not supplied. The user subsequently confirmed Show → Next → Blank → pending Next → Restore, including invisibility while blank and revealing the pending slide on Restore. The user also confirmed that output refresh while live and close/reconnect recover to black and require Show. These are user-reported results; remaining physical tests stay open.
+
+## Not verified / gate still open
+
+- Real Windows 11 Chrome/Edge display permissions, physical placement, hardware hotplug, fullscreen and extended-projector operation.
+- Remaining real macOS Safari recovery, live controls, offline cold restart, installed app behavior and codecs. Manual startup/fullscreen was user-reported as passing above.
+- Full browser/process cold restart without network (automated offline test reloads within a browser context).
+- Real service-worker version update during multiple active tabs, suspension and rollback; coordination limits are documented in DECISIONS.md.
+- Live GitHub Actions execution and deployed GitHub Pages URL. No Git remote is configured. Actions workflow and repository setup instructions are prepared.
+- Future-phase library persistence, backup/restore, rich media and migration acceptance.
+
+Run MANUAL_TESTS.md on the target systems before Phase 2 or live service use. Results must record actual pass/fail evidence rather than treating automation or capability detection as hardware proof.
+
+## Workflow versions
+
+Official action release pages checked at implementation: [checkout v7](https://github.com/actions/checkout/releases/tag/v7.0.1), [setup-node v7](https://github.com/actions/setup-node/releases/tag/v7.1.0), [configure-pages v6](https://github.com/actions/configure-pages/releases/tag/v6.0.0), [upload-pages-artifact v5](https://github.com/actions/upload-pages-artifact/releases/tag/v5.0.0), [deploy-pages v5](https://github.com/actions/deploy-pages/releases/tag/v5.0.1). Workflow pins these major versions and uses Node 24 LTS.
+
+## v1 discovery follow-up
+
+The correct v1.0.0-rc2 archive was supplied after the initial Phase 1 build. Static ZIP/source/AST inspection establishes database schema 15, service schema 9, library export format 1, and 201 test methods in `tests/test_core.py`. No bundled user database or service archive was present. Source hashes and inventory are in `V1_SOURCE_INVENTORY.json`; parity and migration documents have been replaced with source-grounded findings. v1 tests were not executed. Only documentation/inventory changed in this follow-up, so application tests/build were not repeated.
+
+## Safari acceptance and fullscreen correction
+
+User-reported Stop, black-first Test Output/explicit test pattern/Blank, and Safari cold restart with Wi-Fi disabled passed. A raw fullscreen activation TypeError appeared on presentation startup. The application now checks `navigator.userActivation.isActive` before any mount-time request and defaults to the in-window button when activation is absent/unknown. Rejected user-triggered requests display friendly guidance. Real Safari retest of this correction remains pending. Long-running and Windows physical checks remain open.
+
+Fullscreen fix validation: typecheck, ESLint, 4 unit tests, production build/PWA path checks and all 7 Chromium integration tests pass. New browser regressions verify no automatic request without activation, explicit button invocation, and friendly rejection while remaining black. Initial regression mocks were corrected to attach before HTML creation; final results are passing. Safari confirmation of the fix remains pending.
+
+## Safari cached-build diagnosis and update verification
+
+The user reported the raw TypeError persisted. Direct inspection found the localhost server serving the corrected `index-CVsqzUo5.js` build while Safari's existing output still displayed the old raw error. Safari's operator showed a downloaded update with Apply disabled during the active output session. The agent stopped that test session, waited for active-session leases to expire, applied the waiting update through the app's own control, and started a fresh output. Safari then displayed `Connected · Click Enter Fullscreen in this window to enable fullscreen.` with no projected slide or raw TypeError. This directly verifies the corrected startup guidance in real Safari. No site data/cache was cleared and no application code changed in this diagnosis. Fullscreen entry itself and long-running/display checks retain their existing separate acceptance scope.
+
+## 0.2.0 local library/planner verification
+
+Implemented the next authorized increment: Dexie schema 1, local Songs/Slides/Media and service planner, stable bilingual section slides/repeated arrangements, independent editable service snapshots/notes/item design, media reference protection, compact prepared-frame output, local full ZIP backup and validated transactional replacement. Phase scope, limits, files and parity backlog are in PHASE_2.md. Windows/long-running checks remain open; the earlier Safari results cover the prior output engine, not all new editor/media functionality.
+
+Passed strict TypeScript, ESLint, **11 Vitest tests** and **9 Chromium integration tests**. New repository tests verify reopen persistence, preserved repeated bilingual sections and text numbers, source/service independence, media deletion protection, notes-free prepared frames, ZIP roundtrip including media blobs, checksum tampering, unsafe traversal, duplicate IDs and rollback after a deliberately failed table replacement. Browser tests verify end-to-end song/arrangement/service editing, notes/design persistence after reload, source independence, no notes on congregation output, clean-profile full restore, local image preparation/readiness and deletion protection, persisted service/image output following an offline page reload, and invalid restore leaving stored media intact. All seven prior output/fullscreen/offline regressions pass. A library screenshot was inspected at 1280px width; real Safari editing, ZIP export/restore and video codec checks are still pending.
+
+Tests caught field-label ambiguity and reload-before-save-completion in the new editor flow; labels and save-status checks were corrected. Final results above are passing. Video baseline code has not been verified using representative videos or real Windows/Safari hardware, and no migration test against user data is claimed.
+
+## 0.3.0 rendering/media verification — 16 October 2026
+
+Implemented the authorized Phase 3 increment described in PHASE_3.md: copied/inspectable output profiles, service/item/slide design inheritance, local/CJK typography, outlines/safe margins/Auto Fit, fixed 1920×1080 shared rendering, scoped image/video backgrounds and posters, actual media metadata inspection, cancellation, retained-source pause/restore, and version-2 backup compatibility. No destructive database migration occurs; existing records retain legacy design behavior where modes are absent.
+
+Passed strict TypeScript, ESLint, **17 Vitest tests**, production build and asset/manifest/worker validation at both `/` and `/sanctuary-presenter/`. **16 Chromium integration tests** pass, comprising all prior library/output/offline cases plus: identical fitted font values in preview/output and after viewport resize; minimum-size overflow remaining black; a locally generated VP8/WebM imported through the real UI with 160×90 metadata, same-element background continuity, pause while black and resume on Restore; corrupt-video colour fallback without notes; profile inspection/custom persistence/factory preservation; cancelling in-flight image preparation; and corrupt-video fallback to a prepared local poster. Unit additions verify inheritance/legacy precedence, media ownership/reference checks, profile/background ZIP roundtrip and version-1 backup acceptance. Normal interrupted play promises are ignored rather than mislabeled as codec failures.
+
+An operator screenshot (`design-preview.png`) was inspected at 1280px width. This demonstrates shared fitting, not projector readability approval. No actual user video/lyrics were embedded in tests or production; the synthetic WebM is generated inside the test browser and not shipped as an app dependency.
+
+Real Safari/Windows media codec matrices, local CJK font rendering, new library/backup acceptance, physical output resolutions, long-running resource use and service-worker multi-tab/suspension hardening remain unverified. v1 conversion still needs representative backups/service/media inputs. No live GitHub Pages deployment is claimed without a configured remote and Actions run.
+
+
+## 0.3.1 maintenance coordination — 16 October 2026
+
+Passed strict TypeScript, ESLint, 22 unit tests and 17 Chromium integration tests. Five new unit tests cover multiple shared leases, exclusive maintenance rejection, presentation rejection during maintenance, cancelled asynchronous acquisition, unsupported-browser fallback, and update exclusivity through pagehide (some cases share one test). The additional browser case uses the native Web Locks API across actual operator/output windows, verifies maintenance denial during presentation, and verifies release after Test Output closure and Stop. Existing library, ZIP restore, media, black-first output, fullscreen and offline cases pass.
+
+No actual browser/OS suspension or real two-version service-worker transition was exercised. These remain manual release checks. No v1 converter or data migration is delivered in this safety increment; actual user-data migration remains pending.
+
+## 0.4.0 library-export conversion — 16 October 2026
+
+Implemented the standalone format-1/schema-15 `.splibrary` converter, provenance-preserving backup version 3, additive Dexie schema 2 and operator conversion reports. Scope and limitations are in V1_CONVERSION.md. No real v1 user database, library, service or media was converted.
+
+Passed 13 Python tests covering preserved source hashes, stable identifiers, repeated section occurrences, bilingual hard breaks, alias deduplication/fallback, packaged-media hashes, provenance, deterministic missing page IDs, output overwrite refusal, unknown versions, missing/changed media, duplicate labels/IDs/ZIP members, missing arrangement references, inconsistent Auto arrangements, traversal/symlinks and nonfinite JSON. Passed 25 application unit tests, including schema-1 upgrade without content rewrites, provenance backup/replacement, malformed report refusal and version-1/2 compatibility.
+
+Typecheck, ESLint, production builds and PWA path validation pass at `/` and `/sanctuary-presenter/`. The production-browser migration test restores Python-generated output through the real UI, checks bilingual text and text catalogue number, three projected occurrences from repeated arrangements, local media listing, then exports and restores in a clean browser profile and downloads retained original JSON. Full browser suite: 18 tests. A pre-existing image-cancellation test exposed a 500 ms timing assumption under additional parallel load; it now explicitly holds and releases image loading before checking that Blank prevents late reveal.
+
+Real user-library acceptance, Safari conversion/backup rehearsal, full SQLite and service-file migration, OS suspension and actual worker-version transition remain open. GitHub Actions includes Python conversion tests but has not run on GitHub because no remote is configured.
+
+## 0.4.1 SQLite conversion — 16 October 2026
+
+Added explicit schema-15 SQLite backup input to the standalone converter. It opens only a temporary immutable copy, checks migration history/columns/integrity/ownership, resolves media through explicit roots or prefix maps and rechecks source/media hashes before writing. Full table rows and schema definitions remain inert provenance; only active library content/media becomes editable. Source files and media remain unchanged. Service-file conversion remains pending.
+
+Passed **34 Python tests** (13 existing library-export cases plus 21 SQLite cases), **25 application unit tests**, strict TypeScript and ESLint. SQLite cases cover stable song/section/page/arrangement identities, repeated bilingual sequences, deterministic legacy prayer-slide IDs, source/media nonmutation, complete archive-only history/deleted/settings/catalogue rows, BLOB preservation, Windows prefix mapping, relative media roots, root/symlink/traversal restrictions, missing/changed media, sidecar rejection, closed WAL-mode input, mismatched versions/history, missing columns/unknown tables, parent/position/section ownership, changes during conversion and output overwrite refusal. Synthetic test databases use the inspected schema columns; bundled v1 code is not imported or executed.
+
+Both production builds and PWA asset/manifest/worker checks pass at `/` and `/sanctuary-presenter/`. **19 Chromium integration tests pass**. The additional SQLite test invokes the converter, restores through the production UI, verifies the text catalogue number and repeated projected count, downloads the retained history/table snapshot, and starts black before explicitly revealing bilingual output. Historical title text does not appear in output. Existing library export, backup, media, output safety, fullscreen, cancellation, locking and offline regressions pass.
+
+No actual user database or service/media collection has been supplied for data-level acceptance. Safari/Windows physical and media acceptance, service-file conversion, active history/Trash feature parity and real worker-version/suspension checks remain pending. No live GitHub deployment is claimed.
+
+## 0.5.0 service conversion — 16 October 2026
+
+Added schema-9 JSON/portable-service input, repeatable services and combination with one library/database. Saved service snapshots remain independent, sections are non-presenting, notes stay operator-only and per-slide language selection/fallback survives. Original service/manifest JSON and path/asset hashes remain provenance. Effective v1 whole-scope styles/backgrounds become explicit slide designs; editable inheritance parity and Qt layout parity are not claimed. New optional fields do not rewrite existing database records; version-4 backups prevent older apps from ignoring their semantics. Versions 1–3 remain readable.
+
+Passed **56 Python tests** (34 prior cases plus 22 service cases), **27 application unit tests**, strict TypeScript and ESLint. Service cases cover packaged/plain JSON input, explicit media roots, library/database combinations, independent edited text, media deduplication, repeatable services, stable IDs, original hashes, sections, notes, language modes, whole-scope/profile fallback, video-background reference/inheritance mapping, unknown schemas/themes, invalid typography/fonts, invalid/duplicate/empty items, missing media/manifest status, duplicate/traversal ZIP entries, output overwrite refusal and source changes during conversion. Synthetic video bytes used in the Python reference-mapping test are not a playable codec fixture; browser playback remains covered separately by the existing generated-WebM test. The shared synthetic PNG fixture was corrected to contain a valid IDAT checksum before testing projected image output.
+
+Passed production builds and asset/manifest/worker checks for both `/` and `/sanctuary-presenter/`. **20 Chromium integration tests pass**, including all previous output/fullscreen/offline/media/locking/migration cases. The new portable-service test converts a library plus package, restores through the UI, verifies library/service text independence and section exclusion, then projects bilingual text, secondary-only text without primary leakage, primary fallback, and a local image without stored media text. Private notes/item/section titles do not appear on output. Reload/restart starts black. A missing accessible label on the new language selector was found and corrected during this test.
+
+Current implementation acceptance remains synthetic. Actual user database/library/services/media, Safari/Windows physical and media checks, long-running behavior and true multi-version worker/suspension scenarios remain pending. No live GitHub Pages deployment is claimed without a configured remote and Actions run.
