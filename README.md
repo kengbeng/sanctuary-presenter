@@ -1,4 +1,4 @@
-# Sanctuary Presenter v2 — 0.5.0
+# Sanctuary Presenter v2 — 0.6.0
 
 Local-first, dual-window church presentation proof of concept. React + strict TypeScript + Vite + Workbox. Phase 1 output safety is retained alongside the Phase 2 local library and service planner. Shared rendering, output profiles, scoped design inheritance and local video backgrounds are now available. Physical Windows checks and Safari validation of the new library/media workflows remain open; see docs/PHASE_2.md and docs/PHASE_3.md. A standalone v1 library-export converter is available; SQLite backups, service JSON and portable service packages can also be converted; representative user-data acceptance remains pending.
 
@@ -70,3 +70,10 @@ node scripts/smoke-deployed.mjs
 ```
 
 This checks the live HTTPS subpath, manifest, offline reload and black-first dual-window Show/Blank/Stop flow in a clean browser context. The first GitHub Actions build and Pages deployment passed; see the verification record for immutable run details. Local Git pushes require GitHub authentication; Actions uses its built-in repository token.
+
+
+## Presenter usability (0.6.0)
+
+The persistent control strip keeps output state, navigation, Show, Blank and Stop visible while service navigation, previews and setup scroll independently. Display setup collapses after connection. Reconnect is offered on loss; an active session cannot be restarted by clicking Start again. Plain-language state distinguishes Live, Output black, Connecting, Disconnected and closed output.
+
+Choose a saved service directly from Present or use Create first service to enter the planner. Selecting a service blanks output and requires Show. Sample slides are labelled Demo; an empty service shows an empty state, and the last slide has an End of service preview. B/Escape work with buttons focused; editable fields, native selectors/dialogs, composing text and modifier shortcuts retain native behavior. Escape can blank from other non-editable operator controls; letter/arrow presentation shortcuts apply in Present.

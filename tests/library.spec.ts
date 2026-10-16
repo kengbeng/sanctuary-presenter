@@ -101,7 +101,7 @@ test("bilingual library, repeated arrangement, independent service copy and pers
     .getByRole("button", { name: "Start Presentation", exact: true })
     .click();
   const output = await promise;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await expect(output.locator(".blackout")).toBeVisible();
   await expect(output.locator(".frame")).not.toBeVisible();
   await page.getByRole("button", { name: "Show / Restore" }).click();
@@ -205,7 +205,7 @@ test("local image import, reference protection, output readiness and malformed r
     .getByRole("button", { name: "Start Presentation", exact: true })
     .click();
   const output = await promise;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Show / Restore" }).click();
   await expect(output.locator(".slide-media")).toBeVisible();
   await expect(page.getByText("LIVE", { exact: true })).toBeVisible();

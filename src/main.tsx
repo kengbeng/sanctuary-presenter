@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { createRoot } from "react-dom/client";
 import { PresentationLease, applySafeUpdate } from "./coordination";
 import { registerSW } from "virtual:pwa-register";
@@ -320,6 +321,17 @@ function Output() {
 function Operator() {
   const [view, setView] = useState<"present" | "library">("present");
   const [loaded, setLoaded] = useState<ServiceOrder>();
+  const savedServices =
+    useLiveQuery(
+      () => db.services.orderBy("updatedAt").reverse().toArray(),
+      [],
+    ) ?? [];
+  const [libraryRequest, setLibraryRequest] = useState<{
+    serviceId: string;
+    token: string;
+  }>();
+  const [setupOpen, setSetupOpen] = useState(true);
+
   const [mediaState, setMediaState] = useState("Bundled text ready");
   const frames = loaded
     ? servicePages(loaded)
@@ -331,9 +343,32 @@ function Operator() {
 
   const [phase, setPhase] = useState<Phase>("IDLE");
   const phaseRef = useRef<Phase>("IDLE");
+  const sessionActive = !["IDLE", "STOPPED"].includes(phase);
+  const outputLabel =
+    phase === "LIVE"
+      ? "LIVE"
+      : ["READY_BLANK", "BLANKED"].includes(phase)
+        ? "OUTPUT BLACK"
+        : phase === "DISCONNECTED"
+          ? "DISCONNECTED"
+          : phase === "STOPPED"
+            ? "OUTPUT STOPPED"
+            : phase === "IDLE"
+              ? "OUTPUT CLOSED"
+              : "CONNECTING";
+  useEffect(() => {
+    if (["READY_BLANK", "BLANKED", "LIVE"].includes(phase)) setSetupOpen(false);
+    if (["IDLE", "STOPPED"].includes(phase)) setSetupOpen(true);
+  }, [phase]);
+
   const [slide, setSlide] = useState(0);
-  const currentFrame =
-    frames[Math.min(slide, frames.length - 1)] ?? samplePages[0];
+  const currentFrame = frames[Math.min(slide, frames.length - 1)] ?? {
+    id: "empty",
+    title: "",
+    text: "",
+    secondary: "",
+    style: defaultStyle,
+  };
   const [test, setTest] = useState(false);
   const [mode, setMode] = useState("automatic");
   const [screens, setScreens] = useState<Display[]>([]);
@@ -433,6 +468,11 @@ function Operator() {
           else if (desiredVisible.current) {
             change("SHOW");
             setMediaState("Ready");
+            setNotice((previous) =>
+              previous.startsWith("Preparing selected slide")
+                ? "Slide is live. Blank hides output immediately."
+                : previous,
+            );
           }
         }
       }
@@ -524,6 +564,7 @@ function Operator() {
     }
   }
   function stop() {
+    setNotice("Output closed. A new session will start black.");
     operatorLease.current.release();
     const previous = session.current;
     if (previous)
@@ -543,6 +584,7 @@ function Operator() {
     setFull(false);
   }
   function start(isTest: boolean) {
+    if (live.current && phaseRef.current !== "DISCONNECTED") return;
     const previous = session.current;
     if (previous)
       void db.frames
@@ -651,10 +693,19 @@ function Operator() {
     }
   }
   function show() {
-    if (["READY_BLANK", "BLANKED", "LIVE"].includes(phaseRef.current))
+    if (["READY_BLANK", "BLANKED", "LIVE"].includes(phaseRef.current)) {
+      setNotice("Preparing selected slide. Output stays black until ready.");
       void transmit(slide);
+    }
   }
   function blankOutput() {
+    setNotice(
+      live.current
+        ? phaseRef.current === "DISCONNECTED"
+          ? "Blank requested. Connection lost; verify the congregation display."
+          : "Output is black. Navigation changes the pending slide; Show reveals it."
+        : "Output is closed. Start a session to show content.",
+    );
     showGeneration.current++;
     setSending(false);
     desiredVisible.current = false;
@@ -677,12 +728,54 @@ function Operator() {
     setTest(false);
     setView("present");
     setNotice("Service loaded. Output remains black until Show.");
+    void db.settings
+      .put({ key: "selectedService", value: order.id })
+      .catch(() =>
+        setNotice("Service loaded, but its selection could not be saved."),
+      );
+  }
+  async function createService() {
+    try {
+      const stamp = new Date().toISOString();
+      const order: ServiceOrder = {
+        id: crypto.randomUUID(),
+        title: "New service",
+        date: new Date().toLocaleDateString("en-CA"),
+        items: [],
+        createdAt: stamp,
+        updatedAt: stamp,
+      };
+      await db.saveService(order);
+      await db.settings.put({ key: "selectedService", value: order.id });
+      setLibraryRequest({ serviceId: order.id, token: crypto.randomUUID() });
+      setView("library");
+    } catch (error) {
+      setNotice("Could not create service: " + String(error));
+    }
   }
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (view !== "present") return;
-      if ((e.target as HTMLElement).matches("input,select,textarea,button"))
+      if (
+        e.defaultPrevented ||
+        e.isComposing ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey
+      )
         return;
+      const target = e.target instanceof Element ? e.target : null;
+      if (
+        target?.closest(
+          "input,select,textarea,[contenteditable]:not([contenteditable=false]),[role=textbox],[role=dialog]",
+        )
+      )
+        return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        blankOutput();
+        return;
+      }
+      if (view !== "present") return;
       if (e.key === "ArrowRight") {
         e.preventDefault();
         navigate(slide + 1);
@@ -691,14 +784,25 @@ function Operator() {
         e.preventDefault();
         navigate(slide - 1);
       }
-      if (e.key === "b" || e.key === "Escape") blankOutput();
-      if (e.key === "s") show();
+      if (e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        blankOutput();
+      }
+      if (e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        show();
+      }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [slide, view]);
   return (
-    <div className="app">
+    <div
+      className={
+        "app operator-app " +
+        (view === "present" ? "present-view" : "library-view")
+      }
+    >
       <header>
         <div className="brand">
           ✦ <strong>Sanctuary</strong>
@@ -719,8 +823,9 @@ function Operator() {
           </button>
         </nav>
       </header>
-      <div hidden={view !== "library"}>
+      <div className="library-pane" hidden={view !== "library"}>
         <Library
+          request={libraryRequest}
           onPresent={loadService}
           onRestored={() => {
             blankOutput();
@@ -732,195 +837,312 @@ function Operator() {
         />
       </div>
       <main className="workspace" hidden={view !== "present"}>
-        <aside>
+        <aside aria-label="Service navigation">
           <span className="eyebrow">
-            {loaded ? "SERVICE ORDER" : "SAMPLE SERVICE"}
+            {loaded ? "SERVICE ORDER" : "DEMO SERVICE"}
           </span>
           <h2>{loaded?.title ?? "A time to gather"}</h2>
-          <p className="muted">Presentation rehearsal</p>
-          {frames.map((s, i) => (
-            <button
-              className={"service-item " + (slide === i ? "selected" : "")}
-              key={s.id + ":" + i}
-              onClick={() => navigate(i)}
-            >
-              <span>0{i + 1}</span>
-              <div>
-                <strong>{s.itemTitle || s.title || "Slide " + (i + 1)}</strong>
-                <small>{loaded ? "Service copy" : "Sample slide"}</small>
-              </div>
-            </button>
-          ))}
-          <div className="aside-note">
-            Local by design
-            <p>
-              No accounts, uploads, analytics, or remote content. This phase
-              stores content only in this browser. Export backups regularly.
+          {!loaded && (
+            <p className="muted">
+              Sample slides for rehearsal. Choose or create your own service
+              below.
             </p>
+          )}
+          <label>
+            Choose service
+            <select
+              aria-label="Choose service"
+              value={loaded?.id ?? ""}
+              onChange={(e) => {
+                const order = savedServices.find(
+                  (s) => s.id === e.target.value,
+                );
+                if (order) loadService(order);
+              }}
+            >
+              <option value="" disabled>
+                Demo slides
+              </option>
+              {savedServices.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="create-service"
+            onClick={() => void createService()}
+          >
+            {savedServices.length ? "Create service" : "Create first service"}
+          </button>
+          {loaded && (
+            <button
+              onClick={() => {
+                setLibraryRequest({
+                  serviceId: loaded.id,
+                  token: crypto.randomUUID(),
+                });
+                setView("library");
+              }}
+            >
+              Edit service
+            </button>
+          )}
+          <div className="slide-list">
+            {frames.map((s, i) => (
+              <button
+                className={"service-item " + (slide === i ? "selected" : "")}
+                key={s.id + ":" + i}
+                onClick={() => navigate(i)}
+                aria-current={slide === i ? "step" : undefined}
+              >
+                <span>{String(i + 1).padStart(2, "0")}</span>
+                <div>
+                  <strong>
+                    {s.itemTitle || s.title || "Slide " + (i + 1)}
+                  </strong>
+                  <small>{loaded ? "Service copy" : "Demo slide"}</small>
+                </div>
+              </button>
+            ))}
           </div>
+          <p className="muted privacy-note">
+            Your content stays in this browser. Export backups from Library &
+            planner.
+          </p>
         </aside>
-        <section className="editor">
+        <section className="editor" aria-label="Slide preview">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">CURRENT / PENDING</span>
+              <span className="eyebrow">
+                {phase === "LIVE" && !sending
+                  ? "LIVE SLIDE · PREVIEW"
+                  : "PENDING SLIDE · PREVIEW"}
+              </span>
               <h2>
-                {test
-                  ? "Test output"
-                  : currentFrame.title ||
-                    ("itemTitle" in currentFrame
-                      ? String(currentFrame.itemTitle)
-                      : "Selected slide")}
+                {!frames.length
+                  ? "No slides in this service"
+                  : test
+                    ? "Test output"
+                    : currentFrame.title ||
+                      ("itemTitle" in currentFrame
+                        ? String(currentFrame.itemTitle)
+                        : "Selected slide")}
               </h2>
             </div>
             <span className="pill">16:9</span>
           </div>
-          <Frame slide={slide} page={currentFrame} />
-          <div className="transport">
-            <button onClick={() => navigate(slide - 1)} disabled={slide === 0}>
-              ← Previous
-            </button>
-            <span>
-              {frames.length ? slide + 1 : 0} / {frames.length}
-            </span>
-            <button
-              onClick={() => navigate(slide + 1)}
-              disabled={!frames.length || slide >= frames.length - 1}
-            >
-              Next →
-            </button>
-          </div>
+          {frames.length ? (
+            <Frame slide={slide} page={currentFrame} test={test} />
+          ) : (
+            <div className="empty-preview">
+              <h3>Add content before presenting</h3>
+              <p>
+                This service has no presenting slides. Section headings stay off
+                the congregation screen.
+              </p>
+              <button
+                onClick={() => {
+                  if (loaded)
+                    setLibraryRequest({
+                      serviceId: loaded.id,
+                      token: crypto.randomUUID(),
+                    });
+                  setView("library");
+                }}
+              >
+                Add content in planner
+              </button>
+            </div>
+          )}
           <div className="bottom-grid">
             <div>
               <span className="eyebrow">NEXT SLIDE · PREVIEW ONLY</span>
-              <Frame
-                slide={0}
-                page={
-                  frames[Math.min(slide + 1, frames.length - 1)] ??
-                  samplePages[0]
-                }
-              />
+              {frames[slide + 1] ? (
+                <Frame slide={0} page={frames[slide + 1]} />
+              ) : (
+                <div className="end-of-service">
+                  {frames.length ? "End of service" : "No upcoming slides"}
+                </div>
+              )}
             </div>
             <div className="notes">
               <span className="eyebrow">OPERATOR NOTES</span>
               <p>
                 {"notes" in currentFrame && currentFrame.notes
                   ? String(currentFrame.notes)
-                  : "Verify the projector is showing black before the service begins."}
+                  : "No notes for this slide."}
               </p>
               <small>Notes stay in this operator window.</small>
             </div>
           </div>
         </section>
-        <section className="setup">
-          <span className="eyebrow">OUTPUT SETUP</span>
-          <h2>Ready when you are</h2>
-          <label>
-            Display positioning
-            <select value={mode} onChange={(e) => setMode(e.target.value)}>
-              <option value="automatic">Automatic</option>
-              <option value="manual">Manual</option>
-            </select>
-          </label>
-          <button onClick={configure}>Configure Display</button>
-          <label>
-            Preferred display
-            <select value={target} onChange={(e) => setTarget(e.target.value)}>
-              <option value="">Manual / no screen selected</option>
-              {screens.map((d, i) => (
-                <option value={i} key={i}>
-                  {d.label || `Discovered screen ${i + 1}`}{" "}
-                  {d.isPrimary ? "(primary)" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={requestFull}
-              onChange={(e) => setRequestFull(e.target.checked)}
-            />
-            Request fullscreen
-          </label>
-          <p className="muted">
-            Start blank is always enforced. Move the output window to your
-            projector, then click its Enter Fullscreen button.
-          </p>
-          <div className="black-preview" />
-          <small>Preview only · initial congregation output</small>
-          <div className="actions">
-            <button onClick={() => start(true)}>Test Output</button>
-            <button className="primary" onClick={() => start(false)}>
-              Start Presentation
+        <section className="setup" aria-label="Output setup">
+          <details
+            className="display-settings"
+            open={setupOpen}
+            onToggle={(e) => setSetupOpen(e.currentTarget.open)}
+          >
+            <summary>Display setup</summary>
+            <p className="muted">
+              Every session starts black. Place the output on your projector
+              before showing a slide.
+            </p>
+            <label>
+              Display positioning
+              <select value={mode} onChange={(e) => setMode(e.target.value)}>
+                <option value="automatic">Automatic</option>
+                <option value="manual">Manual</option>
+              </select>
+            </label>
+            <button onClick={configure} disabled={sessionActive}>
+              Configure Display
             </button>
-          </div>
-          <div className="status" role="status">
-            <strong>{phase}</strong>
+            <label>
+              Preferred display
+              <select
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+              >
+                <option value="">Manual / no screen selected</option>
+                {screens.map((d, i) => (
+                  <option value={i} key={i}>
+                    {d.label || `Discovered screen ${i + 1}`}{" "}
+                    {d.isPrimary ? "(primary)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={requestFull}
+                onChange={(e) => setRequestFull(e.target.checked)}
+              />
+              Request fullscreen
+            </label>
+            <p className="muted">
+              Your browser may require clicking Enter Fullscreen inside the
+              output window.
+            </p>
+          </details>
+          {sessionActive && phase !== "DISCONNECTED" && (
+            <div className="placement-tools">
+              <p className="muted">
+                Verify the physical display before revealing content.
+              </p>
+              <button
+                onClick={() =>
+                  setPlacement("Operator visually confirmed target display")
+                }
+              >
+                Confirm visible placement
+              </button>
+              <button
+                onClick={() => {
+                  popup.current?.focus();
+                  setNotice(
+                    "Move output to the intended screen, use Enter Fullscreen there, then visually confirm placement.",
+                  );
+                }}
+              >
+                Reposition Output
+              </button>
+            </div>
+          )}
+          {phase === "DISCONNECTED" && (
+            <div className="recovery">
+              <h3>Output connection lost</h3>
+              <p>
+                Reconnect opens a new black window. Verify placement, then Show.
+              </p>
+              <button className="primary" onClick={() => start(test)}>
+                Reconnect Output
+              </button>
+            </div>
+          )}
+          <details className="output-details">
+            <summary>Connection details</summary>
             <dl>
-              <dt>Connection</dt>
-              <dd>
-                {["READY_BLANK", "LIVE", "BLANKED"].includes(phase)
-                  ? "Acknowledged"
-                  : "Not ready"}
-              </dd>
               <dt>Placement</dt>
               <dd>{placement}</dd>
               <dt>Fullscreen</dt>
               <dd>{full ? "Active" : "Inactive"}</dd>
-              <dt>Output</dt>
-              <dd>
-                {phase === "LIVE"
-                  ? "Live"
-                  : ["READY_BLANK", "BLANKED"].includes(phase)
-                    ? "Black"
-                    : "Not connected"}
-              </dd>
               <dt>Media</dt>
               <dd>{mediaState}</dd>
             </dl>
-          </div>
-          <div className="actions">
-            <button
-              className="show"
-              disabled={
-                sending ||
-                !frames.length ||
-                !["READY_BLANK", "BLANKED", "LIVE"].includes(phase)
-              }
-              onClick={show}
-            >
-              {test ? "Show Test Pattern" : "Show / Restore"}
-            </button>
-            <button className="blank" onClick={blankOutput}>
-              Blank
-            </button>
-          </div>
-          <button
-            onClick={() =>
-              setPlacement("Operator visually confirmed target display")
-            }
-          >
-            Confirm visible placement
-          </button>
-          <div className="actions">
-            <button onClick={() => start(test)}>Reconnect Output</button>
-            <button
-              onClick={() => {
-                popup.current?.focus();
-                setNotice(
-                  "Move output to the intended screen, use Enter Fullscreen there, then visually confirm placement.",
-                );
-              }}
-            >
-              Reposition Output
-            </button>
-            <button onClick={stop}>Stop Presentation</button>
-          </div>
-          <p className="notice" role="status">
-            {notice}
-          </p>
+          </details>
+          <p className="muted">Preview is not proof of projector placement.</p>
         </section>
       </main>
+      <section className="live-controls" aria-label="Presentation controls">
+        <div
+          className={"output-state state-" + phase.toLowerCase()}
+          role="status"
+        >
+          <strong>{outputLabel}</strong>
+          <span>
+            {sending || mediaState === "Preparing slide"
+              ? "Preparing slide"
+              : phase === "LIVE"
+                ? "Congregation output acknowledged"
+                : ["READY_BLANK", "BLANKED"].includes(phase)
+                  ? "Show reveals the pending slide"
+                  : phase === "DISCONNECTED"
+                    ? "Verify the congregation display"
+                    : "New sessions always start black"}
+          </span>
+        </div>
+        <div className="live-buttons">
+          <button
+            onClick={() => navigate(slide - 1)}
+            disabled={view !== "present" || slide === 0 || !frames.length}
+          >
+            ← Previous
+          </button>
+          <span className="slide-count">
+            {frames.length ? slide + 1 : 0} / {frames.length}
+          </span>
+          <button
+            onClick={() => navigate(slide + 1)}
+            disabled={
+              view !== "present" || !frames.length || slide >= frames.length - 1
+            }
+          >
+            Next →
+          </button>
+          {!sessionActive && view === "present" && (
+            <>
+              <button onClick={() => start(true)}>Test Output</button>
+              <button className="primary" onClick={() => start(false)}>
+                Start Presentation
+              </button>
+            </>
+          )}
+          <button
+            className="show"
+            disabled={
+              view !== "present" ||
+              sending ||
+              !frames.length ||
+              !["READY_BLANK", "BLANKED", "LIVE"].includes(phase)
+            }
+            onClick={show}
+          >
+            {test ? "Show Test Pattern" : "Show / Restore"}
+          </button>
+          <button className="blank" onClick={blankOutput}>
+            Blank
+          </button>
+          <button className="stop" disabled={!sessionActive} onClick={stop}>
+            Stop Presentation
+          </button>
+        </div>
+        <p className="control-notice notice" role="status">
+          {notice}
+        </p>
+      </section>
       <footer>
         <span>
           {offline

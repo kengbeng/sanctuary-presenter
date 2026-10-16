@@ -193,7 +193,7 @@ test("SQLite conversion restores active content, projects bilingual snapshots an
       .getByRole("button", { name: "Start Presentation", exact: true })
       .click();
     const outputPage = await popup;
-    await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+    await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
     await expect(outputPage.locator(".blackout")).toBeVisible();
     await page
       .getByRole("button", { name: "Show / Restore", exact: true })
@@ -287,7 +287,7 @@ test("portable service conversion preserves edited snapshots, sections, language
       .getByRole("button", { name: "Start Presentation", exact: true })
       .click();
     const output = await popup;
-    await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+    await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
     await expect(output.locator(".blackout")).toBeVisible();
     await page
       .getByRole("button", { name: "Show / Restore", exact: true })
@@ -325,7 +325,7 @@ test("portable service conversion preserves edited snapshots, sections, language
       .getByRole("button", { name: "Start Presentation", exact: true })
       .click();
     const reloadedOutput = await again;
-    await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+    await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
     await expect(reloadedOutput.locator(".blackout")).toBeVisible();
     await page
       .getByRole("button", { name: "Stop Presentation", exact: true })

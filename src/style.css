@@ -730,3 +730,244 @@ summary {
   background: #a5e6d5;
   color: #09211d;
 }
+
+/* Keep live actions outside every independently scrolling preparation pane. */
+.operator-app {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  overflow: hidden;
+}
+.operator-app > header {
+  padding: 14px 22px;
+}
+.operator-app .workspace {
+  min-height: 0;
+  grid-template-columns: 210px minmax(0, 1fr) 280px;
+  overflow: hidden;
+}
+.operator-app .workspace > aside,
+.operator-app .editor,
+.operator-app .setup,
+.library-pane {
+  min-height: 0;
+  overflow: auto;
+}
+.operator-app .workspace > aside {
+  padding: 20px 14px;
+}
+.operator-app .editor {
+  padding: 20px;
+  resize: none;
+}
+.operator-app .setup {
+  padding: 20px 16px;
+  grid-column: auto;
+}
+.operator-app .section-heading {
+  margin-bottom: 14px;
+}
+.operator-app .bottom-grid {
+  margin-top: 20px;
+  gap: 16px;
+}
+.operator-app .service-item {
+  padding: 12px 8px;
+  gap: 9px;
+}
+.operator-app .privacy-note {
+  border-top: 1px solid #34414d;
+  padding-top: 14px;
+  margin-top: 22px;
+}
+.create-service {
+  margin: 0 0 8px;
+}
+.display-settings summary,
+.output-details summary {
+  cursor: pointer;
+  padding: 10px 0;
+  font-weight: 650;
+}
+.output-details {
+  margin-top: 16px;
+}
+.placement-tools button {
+  margin: 6px 0;
+  width: 100%;
+  font-size: 12px;
+}
+.recovery {
+  border: 1px solid #d9a76b;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.live-controls {
+  border-top: 1px solid #40515d;
+  background: #18232c;
+  padding: 12px 18px 8px;
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) auto;
+  align-items: center;
+  gap: 7px 18px;
+  z-index: 2;
+}
+.output-state {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.output-state strong {
+  font-size: 16px;
+  letter-spacing: 0.7px;
+}
+.output-state span {
+  color: #b1c0c9;
+  font-size: 12px;
+}
+.state-live strong {
+  color: #8ce2b4;
+}
+.state-ready_blank strong,
+.state-blanked strong {
+  color: #f2d59d;
+}
+.state-disconnected strong {
+  color: #ffb1a5;
+}
+.live-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.live-buttons button {
+  min-height: 42px;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+.live-buttons .blank {
+  min-width: 86px;
+  border-width: 2px;
+}
+.live-buttons .stop {
+  color: #ffd5cb;
+}
+.slide-count {
+  color: #c0cbd1;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.control-notice {
+  grid-column: 1/-1;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #bfccd3;
+  max-height: 3em;
+  overflow: auto;
+}
+.empty-preview,
+.end-of-service {
+  border: 1px dashed #52636e;
+  border-radius: 8px;
+  padding: 24px;
+  color: #b9c8d0;
+  line-height: 1.6;
+}
+.empty-preview {
+  min-height: 180px;
+}
+.end-of-service {
+  margin-top: 12px;
+  text-align: center;
+}
+.operator-app footer {
+  padding: 8px 18px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.operator-app .render-info {
+  font-size: 11px;
+  color: #a1b1bc;
+}
+@media (max-width: 1100px) {
+  .operator-app .workspace {
+    grid-template-columns: 180px minmax(0, 1fr) 240px;
+  }
+  .live-controls {
+    grid-template-columns: 1fr;
+  }
+  .output-state {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .live-buttons {
+    justify-content: center;
+  }
+}
+@media (max-width: 800px) {
+  .operator-app .workspace {
+    grid-template-columns: 165px minmax(0, 1fr);
+    overflow: auto;
+    align-content: start;
+  }
+  .operator-app .setup {
+    grid-column: 1/-1;
+    border-top: 1px solid #34414d;
+    overflow: visible;
+  }
+  .operator-app .workspace > aside,
+  .operator-app .editor {
+    overflow: visible;
+  }
+  .live-buttons button {
+    padding: 8px;
+    font-size: 12px;
+    min-height: 36px;
+  }
+}
+@media (max-width: 650px) {
+  .operator-app > header {
+    padding: 10px 12px;
+  }
+  .operator-app .brand {
+    font-size: 20px;
+  }
+  .operator-app header button {
+    font-size: 12px;
+    padding: 8px;
+  }
+  .operator-app .workspace {
+    display: block;
+  }
+  .operator-app .workspace > aside {
+    max-height: 200px;
+    overflow: auto;
+  }
+  .operator-app .editor {
+    padding: 16px;
+  }
+  .live-controls {
+    padding: 8px;
+    gap: 6px;
+  }
+  .output-state strong {
+    font-size: 13px;
+  }
+  .output-state span {
+    font-size: 10px;
+  }
+  .live-buttons {
+    gap: 5px;
+  }
+  .operator-app footer span:last-of-type {
+    display: none;
+  }
+}

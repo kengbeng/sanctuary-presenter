@@ -58,7 +58,7 @@ try {
     .getByRole("button", { name: "Start Presentation", exact: true })
     .click();
   const output = await popup;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await expect(output.locator(".blackout")).toBeVisible();
   await expect(output.locator(".frame")).not.toBeVisible();
   await page
@@ -73,7 +73,7 @@ try {
   await page
     .getByRole("button", { name: "Stop Presentation", exact: true })
     .click();
-  await expect(page.getByText("STOPPED", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT STOPPED", { exact: true })).toBeVisible();
   assert.deepEqual(errors, []);
   assert.deepEqual(remoteRequests, [], "Unexpected third-party app requests");
   assert.deepEqual(writes, [], "Unexpected write requests");

@@ -83,7 +83,7 @@ async function start(page: BrowserPage) {
     .getByRole("button", { name: "Start Presentation", exact: true })
     .click();
   const output = await promise;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await expect(output.locator(".blackout")).toBeVisible();
   return output;
 }

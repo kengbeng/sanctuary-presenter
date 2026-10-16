@@ -269,10 +269,12 @@ function cloneContent(c: Content) {
   return copy;
 }
 export function Library({
+  request,
   onPresent,
   canRestore,
   onRestored,
 }: {
+  request?: { serviceId: string; token: string };
   onPresent: (service: ServiceOrder) => void;
   canRestore: boolean;
   onRestored: () => void;
@@ -301,6 +303,23 @@ export function Library({
     [busy, setBusy] = useState(false),
     [storage, setStorage] = useState("Storage usage not yet checked"),
     [sort, setSort] = useState("title");
+  useEffect(() => {
+    if (!request) return;
+    let cancelled = false;
+    void db.services
+      .get(request.serviceId)
+      .then((order) => {
+        if (!cancelled && order) {
+          setService(structuredClone(order));
+          setItemIndex(0);
+          setServicePage(0);
+        }
+      })
+      .catch(() => setMessage("Could not open the requested service."));
+    return () => {
+      cancelled = true;
+    };
+  }, [request]);
   const [arrangement, setArrangement] = useState("");
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -1240,7 +1259,12 @@ export function Library({
                   onChange={(e) => {
                     setService({ ...service, title: e.target.value });
                   }}
-                  onBlur={() => void run(() => db.saveService(service))}
+                  onBlur={() =>
+                    void run(async () => {
+                      await db.saveService(service);
+                      setMessage("Service changes saved locally.");
+                    })
+                  }
                 />
               </label>
               <label>

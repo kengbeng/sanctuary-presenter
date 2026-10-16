@@ -11,7 +11,7 @@ test("black first, explicit reveal, navigation, blank, reload, reconnect, stop",
     .getByRole("button", { name: "Start Presentation", exact: true })
     .click();
   const output = await popupPromise;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await expect(output.locator(".blackout")).toBeVisible();
   await expect(output.locator(".frame")).not.toBeVisible();
   await page.getByRole("button", { name: "Show / Restore" }).click();
@@ -30,7 +30,7 @@ test("black first, explicit reveal, navigation, blank, reload, reconnect, stop",
   await output.reload();
   await expect(output.locator(".blackout")).toBeVisible();
   await expect(output.locator(".frame")).not.toBeVisible();
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Show / Restore" }).click();
   await expect(output.locator(".frame")).toHaveCount(1);
   await output.close();
@@ -38,11 +38,11 @@ test("black first, explicit reveal, navigation, blank, reload, reconnect, stop",
   const replacementPromise = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Reconnect Output" }).click();
   const replacement = await replacementPromise;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await expect(replacement.locator(".blackout")).toBeVisible();
   await expect(replacement.locator(".frame")).not.toBeVisible();
   await page.getByRole("button", { name: "Stop Presentation" }).click();
-  await expect(page.getByText("STOPPED", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT STOPPED", { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 test("test pattern never leaks selected service and output opens offline", async ({
@@ -65,7 +65,7 @@ test("test pattern never leaks selected service and output opens offline", async
   const promise = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Test Output", exact: true }).click();
   const output = await promise;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await expect(output.locator(".blackout")).toBeVisible();
   await expect(output.locator(".frame")).not.toBeVisible();
   await page.getByRole("button", { name: "Show Test Pattern" }).click();
@@ -80,7 +80,7 @@ test("test pattern never leaks selected service and output opens offline", async
   await expect(output.locator(".frame")).not.toBeVisible();
   await page.screenshot({ path: "docs/operator-preview.png", fullPage: true });
   await output.close();
-  await expect(page.getByText("IDLE", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT CLOSED", { exact: true })).toBeVisible();
 });
 test("direct output URL and popup denial stay safe", async ({ page }) => {
   await page.goto("./#/output");
@@ -149,7 +149,7 @@ test("automatic selection requires a choice for multiple secondary displays", as
     .getByRole("button", { name: "Start Presentation", exact: true })
     .click();
   const output = await promise;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await expect(output.locator(".blackout")).toBeVisible();
   await expect(output.locator(".frame")).not.toBeVisible();
 });
@@ -163,14 +163,14 @@ test("retired output is quarantined and stale/wrong-session commands are rejecte
     .getByRole("button", { name: "Start Presentation", exact: true })
     .click();
   const old = await promise;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Show / Restore" }).click();
   await expect(old.locator(".frame")).toHaveCount(1);
   const replacement = await context.newPage();
   await replacement.goto(old.url());
   await expect(old.locator(".blackout")).toBeVisible();
   await expect(old.locator(".frame")).not.toBeVisible();
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Show / Restore" }).click();
   await expect(replacement.locator(".frame")).toHaveCount(1);
   await expect(old.locator(".blackout")).toBeVisible();
@@ -218,7 +218,7 @@ test("startup without activation waits for the fullscreen button", async ({
     .getByRole("button", { name: "Start Presentation", exact: true })
     .click();
   const output = await promise;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await expect(output.locator("html")).not.toHaveAttribute(
     "data-fullscreen-calls",
   );
@@ -264,7 +264,7 @@ test("fullscreen rejection gives guidance and keeps output black", async ({
     .getByRole("button", { name: "Start Presentation", exact: true })
     .click();
   const output = await promise;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   await output.locator(".output-tools").hover();
   await output
     .getByRole("button", { name: "Enter Fullscreen", exact: true })
@@ -275,7 +275,7 @@ test("fullscreen rejection gives guidance and keeps output black", async ({
   await expect(output.getByText("TypeError", { exact: false })).toHaveCount(0);
   await expect(output.locator(".blackout")).toBeVisible();
   await expect(output.locator(".frame")).not.toBeVisible();
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
 });
 
 test("native cross-window maintenance locks survive silence and release after Test Output closes", async ({
@@ -294,20 +294,20 @@ test("native cross-window maintenance locks survive silence and release after Te
   const popupPromise = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Test Output", exact: true }).click();
   const output = await popupPromise;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   expect(await canMaintain()).toBe(false);
   // No heartbeat timing is involved: the browser owns the lock until release.
   const held = await output.evaluate(() => navigator.locks.query());
   expect(held.held?.some((lock) => lock.mode === "shared")).toBe(true);
   await output.close();
-  await expect(page.getByText("IDLE", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT CLOSED", { exact: true })).toBeVisible();
   await expect.poll(canMaintain).toBe(true);
   const again = page.waitForEvent("popup");
   await page
     .getByRole("button", { name: "Start Presentation", exact: true })
     .click();
   await again;
-  await expect(page.getByText("READY_BLANK", { exact: true })).toBeVisible();
+  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
   expect(await canMaintain()).toBe(false);
   await page.getByRole("button", { name: "Stop Presentation" }).click();
   await expect.poll(canMaintain).toBe(true);
