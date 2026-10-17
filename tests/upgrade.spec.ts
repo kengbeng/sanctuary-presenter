@@ -8,6 +8,8 @@ test("schema-2 shell keeps live output while update waits, then upgrades saved d
   browser,
 }, testInfo) => {
   test.setTimeout(60000);
+  const releaseVersion = JSON.parse(await readFile("package.json", "utf8"))
+    .version as string;
   const baseline = await JSZip.loadAsync(
       await readFile("tests/fixtures/previous-shell-0.6.0.zip"),
     ),
@@ -154,7 +156,7 @@ test("schema-2 shell keeps live output while update waits, then upgrades saved d
       page.getByRole("heading", { name: "Your services", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByText("Presenter / v2 · 0.7.0-rc.1", { exact: true }),
+      page.getByText(`Presenter / v2 · ${releaseVersion}`, { exact: true }),
     ).toBeVisible();
     await page
       .getByRole("button", { name: "Open Upgrade service", exact: true })
