@@ -1,79 +1,76 @@
-# Sanctuary Presenter v2 — 0.6.0
+# Sanctuary Presenter v2 — 0.7.0-rc.1
 
-Local-first, dual-window church presentation proof of concept. React + strict TypeScript + Vite + Workbox. Phase 1 output safety is retained alongside the Phase 2 local library and service planner. Shared rendering, output profiles, scoped design inheritance and local video backgrounds are now available. Physical Windows checks and Safari validation of the new library/media workflows remain open; see docs/PHASE_2.md and docs/PHASE_3.md. A standalone v1 library-export converter is available; SQLite backups, service JSON and portable service packages can also be converted; representative user-data acceptance remains pending.
+A local-first church presentation application for GitHub Pages. Services → Prepare → Review → Present provides independent service copies, bilingual songs, repeated sections, local media and a separate congregation window. This release candidate is for rehearsal. Automated checks do not replace the outstanding Safari/second-display, room-readability and participant checks listed in [release acceptance](docs/RELEASE_ACCEPTANCE.md).
 
-## Development
+## Prepare and present
 
-Use Node 24 LTS and npm.
+1. Open Services and create or open a service. Add saved content or create a song without an existing library or export.
+2. Enter verses, choruses and bridges, including multiple slides and both language channels. Optional whole-song paste uses explicit `[Section]` lines and `---` slide breaks, followed by Preview and Apply. Save song and add creates a reusable Library song and a separate service copy atomically.
+3. Prepare saves service-copy changes locally. Duplicate/move sections or slides under their options. Custom song orders and notes remain distinct from source Library content. Review service walks the saved public sequence and private cues without changing output.
+4. Choose Present service, open Display setup and open the congregation window. Automatic discovery is available where the browser supports it; manual positioning is always available. New and recovered output starts black. Visually verify the projector.
+5. Select a preview using Next/Previous, a song-order position or a direct section jump. Press **Take** to reveal it. Selection alone does not change live output. **Blank screen** hides content; **End presentation** closes the session. Arrows preview, S or Shift+B takes, and B/Escape blanks outside protected editing/modal contexts. Click the operator window to use shortcuts.
+6. During presentation, Prepare edits remain staged. Apply saved changes in Present replaces the navigation version while keeping the acknowledged live frame; a separate Take reveals new words. Library corrections never silently refresh service copies. Library source → Compare with Library shows the consequences before explicitly replacing one copy.
 
-```sh
-npm ci
-npm run dev
-npm run typecheck
-npm run lint
-npm test
-npm run build
-npm run validate:pwa
-npm run preview
-```
+The operator can deliberately expose output setup controls for an Enter Fullscreen click. Fullscreen may require a fresh gesture; manual positioning, browser fullscreen or windowed output remain available. Pointer movement does not expose controls over live lyrics. Safari Spaces, codecs, projector placement and room readability require actual hardware rehearsal.
 
-Open the URL printed by Vite, including `/sanctuary-presenter/`. Production-preview service workers require HTTPS or localhost. Build tests with `npx playwright install chromium` then `npm run test:e2e`. Browser integration uses the production build on port 4173 and the default subpath.
+## Upgrade and backups
 
-## Output rehearsal
+Before upgrading an existing installation, export a full backup from Library (Library & planner in older versions), save the ZIP outside browser storage, end all sessions and close every other operator/output window. Apply the downloaded update only after that. Never clear site data as an update procedure.
 
-Configure Display to request automatic screen discovery where supported. Choose the desired screen when there are multiple secondaries. Start Presentation or Test Output opens a separate window synchronously. It starts black and must acknowledge before Show is enabled. Verify the actual projector, then confirm placement. Show/Restore reveals the pending slide; Blank hides immediately. Navigation while blank changes only the pending slide. Test mode only reveals a deliberate test pattern.
+This candidate uses **database schema 3** and **backup format 5**; restore accepts supported formats 1–5. Schema-2 records receive editing revision/token metadata without rewriting IDs, lyrics or embedded copies. Stale saves are rejected with drafts retained. Restore is validated, transactional and replace-only; it does not merge. Export before replacing data. Archive size is limited to 256 MB and structured JSON to 16 MB.
 
-Manual positioning is always available: drag the output window to the projector, then hover its lower edge or tab into the output controls to click Enter Fullscreen. Fullscreen may be rejected without a fresh gesture; continue windowed or use browser fullscreen. Safari Spaces requires real-system rehearsal. If popups are blocked, allow them and click Start/Reconnect again. Reconnect always opens black. Stop blanks and closes output where browser policy permits. Keys in the operator: arrows navigate, B/Escape blank, S show.
-
-## GitHub Pages
-
-The deployment workflow runs lockfile install, typecheck, lint, unit tests, build, PWA path validation and Chromium integration tests before official Pages artifact/deployment actions. Connect this repository to GitHub, push to `main`, and set **Settings → Pages → Build and deployment → Source: GitHub Actions**. Repository: [kengbeng/sanctuary-presenter](https://github.com/kengbeng/sanctuary-presenter). Production target: [Sanctuary Presenter](https://kengbeng.github.io/sanctuary-presenter/). Deployment status is recorded in docs/VERIFICATION.md.
-
-CI defaults to `/<repository>/`. For owner sites or custom domains set the repository Actions variable `VITE_BASE_PATH` to `/`. For local builds use `VITE_BASE_PATH=/your-repository/ npm run build`. The value must start and end with `/`. Rename repositories by rebuilding with the new base. Configure custom domains through GitHub Pages settings and DNS, then rebuild with `/`. Hash routes `#/app` and `#/output` need no server rewrites. All assets, manifest IDs/scope, output URLs and worker paths follow the base.
+Older JavaScript is not a safe database downgrade. Retain the original external backup and previous deployment artifact; use a compatible current reader or forward repair. A browser that has opened schema 3 must not be pointed back at older schema-2 JavaScript as a recovery procedure. See [U2 compatibility](docs/UPDATE_U2.md) and [release acceptance](docs/RELEASE_ACCEPTANCE.md).
 
 ## Offline and privacy
 
-First load requires connectivity. Wait for **App shell cached · offline ready**, then rehearse a cold restart with network disabled. Only app-shell files are cached; imported content and media are stored separately in IndexedDB. Sample text is bundled; no content is uploaded or synced. No runtime CDN, fonts, analytics or backend. GitHub receives ordinary static-site requests; user libraries remain local. Browser storage is isolated by profile/origin and can be cleared or evicted. A domain or origin change creates a separate storage context.
+First load requires connectivity. Wait for **App shell cached · offline ready**, then rehearse a complete browser restart with networking disabled. App-shell assets are cached by the service worker; songs, services and imported media stay in IndexedDB on this browser profile and origin. No content upload, synchronization, runtime CDN, analytics, remote fonts or backend is used. GitHub receives ordinary static-site requests. Local storage can be cleared or evicted; keep external backups. Local storage and notes are not encrypted or access-controlled by this application.
 
-Updates download without forced activation. Stop all presentations and close other output/operator windows before applying a downloaded update. Browser-held shared locks protect presentation sessions, including silent/suspended tabs; applying an update or replacing the library requires an exclusive lock. Heartbeats provide additional guidance. Without Web Locks, close every app window so the downloaded update can activate naturally; in-app restore is unavailable. For the first upgrade from an older build without these locks, close all app windows before reopening. Do not apply updates during a service.
+Updates download without forced activation. Presentation shared locks block unsafe update activation and restore. Without Web Locks, stop sessions and close all app windows so the downloaded update can activate naturally. Separate profiles, origins and devices have separate storage; exporting/restoring a full backup is the supported cross-device transfer, with explicit replacement at the destination.
 
-## Library, services and backups
+## Development
 
-Open **Library & planner**, create a service, then create a song or slide set. Songs support text song numbers, bilingual multi-slide sections, and arrangements with repeated sections. Save the library master before adding it to the service. A service item is an independent snapshot: notes, text and design changes do not alter the master. **Present this service** loads the saved service into the operator and keeps output black until Show. The selected service survives normal reloads; output never resumes LIVE automatically.
-
-Import local images/video through Media; supported MIME types and a 200 MB per-file limit are shown in the app. Referenced media cannot be deleted. Video codec support varies; rehearse on the actual browser/projector. Backgrounds support image/video, cover/contain, darkening and poster/colour fallback. Blank pauses retained playback; Restore resumes an unchanged source. Operator video previews are static. Codec support and continuity still need real Safari/Windows validation.
-
-Open **Service design & output profile** in the planner to inspect Projector/LED wall/Livestream values or edit Custom. Service settings are inherited by items/slides unless an explicit Custom override is selected. **Auto Fit** respects the minimum size and safe area; text that still overflows stays black with an operator error. Fonts are local to the device, so rehearse bilingual text on the actual projector.
-
-Use **Export full backup** prominently in the planner. Keep the ZIP outside browser storage and export before destructive changes. **Restore backup** validates before asking to replace all local data; stop presentations and close other operator tabs first. Archive limit is 256 MB; structured JSON limit is 16 MB. Restore is replace-only and transactional. See [Phase 2 scope and limits](docs/PHASE_2.md) for security limits and remaining parity work. Current backup manifests use version 2 and restore accepts versions 1 and 2. v1/EasiSlides conversion is not yet available.
-
-See [decisions](docs/DECISIONS.md), [parity inventory](docs/FEATURE_PARITY.md), [migration prerequisites](docs/DATA_MIGRATION.md), [physical acceptance checklist](docs/MANUAL_TESTS.md) and [verification record](docs/VERIFICATION.md). Remaining physical and cross-browser acceptance checks are required before release.
-
-
-## v1 library, SQLite and service conversion (0.5.0)
-
-Export a `.splibrary` from v1 with media included, then use Python 3 outside the PWA:
+Use Node 24 and npm:
 
 ```sh
-python3 tools/convert_v1.py --library /path/to/export.splibrary --output /path/to/new-v2-backup.zip
+npm ci
+npm run typecheck
+npm run lint
+npm test
 python3 -m unittest discover -s tools/tests
+npm run build
+npm run validate:pwa
+npx playwright install chromium
+npm run test:e2e
+npm run preview
 ```
 
-Only library format 1 / database schema 15 is supported. SQLite input requires Python 3.11 or newer and a consistent schema-15 backup. The tool leaves its source untouched and refuses existing output files. In v2, export your current full backup, stop presentations, then use **Library & planner → Restore backup**. This replaces the local library; it does not merge. Inspect the conversion report and rehearse text/media before use. Original export JSON is retained and downloadable from the report. Keep the original `.splibrary`, including any deleted media bytes.
+Open the printed URL including `/sanctuary-presenter/`. Service workers need localhost or HTTPS. `npm run dev` supports normal development. The default route uses the new workflow. `#/app` retains the prior compatibility operator, with its former immediate live navigation; `#/workflow-prototype` uses temporary practice data; `#/output` is the dedicated output route. These entries do not need server rewrites.
 
-See [conversion scope and limitations](docs/V1_CONVERSION.md). For a closed SQLite backup, use `--database` instead of `--library` and supply `--media-root` or `--path-map` for active media. See the conversion guide for examples. History/settings/deleted rows remain inspectable archival data. Add repeatable `--service` inputs for schema-9 service JSON or `.spservice` packages, either alone or alongside a library/database. For example: `python3 tools/convert_v1.py --library library.splibrary --service sunday.spservice --output converted.zip`. Service snapshots remain independent; converted designs are explicit per-slide values. EasiSlides and active historical-data migration remain pending.
+## GitHub Pages
 
-Production smoke check (after deployment, with Chromium installed):
+Repository: [kengbeng/sanctuary-presenter](https://github.com/kengbeng/sanctuary-presenter). Hosting target: [Sanctuary Presenter](https://kengbeng.github.io/sanctuary-presenter/). The local candidate is not evidence of deployment; see [verification](docs/VERIFICATION.md) for actual publication results.
+
+The existing Actions workflow installs from the lockfile, runs strict types/lint, application/converter/browser tests, builds and validates the PWA, then deploys the official Pages artifact. Set Settings → Pages → Source to GitHub Actions. A push to main starts this workflow. Git push needs repository authentication; deployment uses the built-in Actions token.
+
+The default base is `/<repository>/`. Set repository Actions variable `VITE_BASE_PATH=/` for an owner site/custom domain, or use `VITE_BASE_PATH=/your-repository/ npm run build` locally. The base must start and end with `/`. Rebuild when changing the base or repository name. Manifest identity/scope/start URL, worker, assets, output URLs and release metadata follow the base. `release.json` identifies the built version, database schema and backup format.
+
+After deployment, verify the expected release:
 
 ```sh
-node scripts/smoke-deployed.mjs
+node scripts/smoke-deployed.mjs https://kengbeng.github.io/sanctuary-presenter/ 0.7.0-rc.1
 ```
 
-This checks the live HTTPS subpath, manifest, offline reload and black-first dual-window Show/Blank/Stop flow in a clean browser context. The first GitHub Actions build and Pages deployment passed; see the verification record for immutable run details. Local Git pushes require GitHub authentication; Actions uses its built-in repository token.
+This checks deployed version metadata, subpath loading, manifest, offline reload, black-first dual-window Take/Blank/End and absence of third-party app requests or write requests. It does not certify physical placement or cold-start behavior on every browser.
 
+## v1 conversion
 
-## Presenter usability (0.6.0)
+A standalone Python converter supports v1 format-1/schema-15 Library exports, consistent schema-15 SQLite backups, schema-9 service JSON and portable service packages. It leaves source files untouched and refuses existing output paths. Example:
 
-The persistent control strip keeps output state, navigation, Show, Blank and Stop visible while service navigation, previews and setup scroll independently. Display setup collapses after connection. Reconnect is offered on loss; an active session cannot be restarted by clicking Start again. Plain-language state distinguishes Live, Output black, Connecting, Disconnected and closed output.
+```sh
+python3 tools/convert_v1.py --library library.splibrary --service sunday.spservice --output converted.zip
+python3 tools/convert_v1.py --database closed-backup.sqlite --media-root /path/to/media --output converted.zip
+```
 
-Choose a saved service directly from Present or use Create first service to enter the planner. Selecting a service blanks output and requires Show. Sample slides are labelled Demo; an empty service shows an empty state, and the last slide has an End of service preview. B/Escape work with buttons focused; editable fields, native selectors/dialogs, composing text and modifier shortcuts retain native behavior. Escape can blank from other non-editable operator controls; letter/arrow presentation shortcuts apply in Present.
+See [conversion scope](docs/V1_CONVERSION.md) for exact formats, media mapping and retained provenance. Export the destination's backup, stop all output, then use Library → Restore backup to replace local data with the converted archive. Conversion is not a merge; EasiSlides and unsupported history/settings activation remain outside scope. Rehearse actual user media and text after conversion.
+
+See [implementation plan](docs/NEXT_UPDATES_PLAN.md), [UI specification](docs/USER_INTERFACE_SPECIFICATION.md), [database review](docs/SONG_LIBRARY_DATABASE_REVIEW.md), [release acceptance](docs/RELEASE_ACCEPTANCE.md), [manual history](docs/MANUAL_TESTS.md) and [verification](docs/VERIFICATION.md).
