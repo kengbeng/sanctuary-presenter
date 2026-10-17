@@ -62,3 +62,25 @@ Backup version 4 declares these semantics so older versions reject instead of ig
 The operator shell is bounded to the viewport, with scrolling confined to preparation panes and library content. Essential controls remain outside those scroll containers, including emergency Blank while the library is open. Show is disabled while preparing in Library & planner; navigation shortcuts apply in Present. Native editable/select/dialog behavior takes precedence over app shortcuts. B/Escape work from ordinary buttons; modifier/composition/default-prevented events are ignored.
 
 State labels distinguish acknowledged live output, black output and disconnected/closed sessions without pretending that a software preview verifies projector placement. The startup-black illustration was removed. Display setup collapses after connection; reconnect is offered only on loss. Active Start calls are guarded rather than silently replacing a session. Choosing a saved service deliberately blanks output and does not regenerate or auto-show its snapshots. Empty services have no sample fallback in the operator pane and end-of-service has no duplicate next preview.
+
+
+## 17 October 2026: Next-updates foundation and confirmed presenter workflow
+
+- U1 introduces unique runtime presentation destination IDs using item/occurrence/page identity. Persisted source page IDs remain unchanged. Output commands still use independently generated prepared-frame IDs and slide indices; no wire-field change is required in this increment.
+- New writes require canonical song versus slide-set hierarchy and auto arrangement order. Legacy backup versions 1–4 remain readable without dropping data. Legacy records are reported; editable recovery creates a distinct record while retaining the saved original and converting contradictory auto order to Custom explicitly. Existing service snapshots can remain byte-for-byte unchanged during notes/order edits; new or changed ambiguous snapshots are rejected.
+- Structurally valid unfinished songs may be saved. Empty selected public content cannot be revealed; words, public title or intentional media must be present. Asset existence/decoding remains a separate repository/rendering check.
+- The user explicitly selected **Preview first, then separate Show/Take** and **staged edits with explicit Apply**. These supersede the draft immediate-navigation recommendation and proposed active-service editing lock. The next presenter phase must implement Take in both black/live states; Save and Apply must not reveal. The present U1 UI retains 0.6.0 live navigation until that coordinated UI/keyboard/test change.
+- Occurrence-resume semantics, source replacement and the accessible live output-toolbar entry still need concrete interaction review. No new confirmation is needed for the two choices above.
+
+
+## 17 October 2026: U2 revision tokens and U3 practice route
+
+Database schema 3 adds top-level revisions/tokens to content and services. Backup format 5 declares this contract and restore issues fresh tokens to invalidate stale editing contexts; supported readers accept archives 1–5. Independent service snapshots are not automatically refreshed. Atomic saveSongAndAdd and revision-aware save/delete APIs are available for the new authoring flow. See UPDATE_U2.md for tests and upgrade limits.
+
+The confirmed Preview → Take and staged Apply choices are demonstrated at the isolated #/workflow-prototype route using temporary in-memory practice data and simulated output. This is U3 review material, not a migrated replacement for the existing operator. See UPDATE_U3.md for precise scope and validation limits. The production site remains unchanged.
+
+## 17 October 2026: Explicit source replacement implementation
+
+U6.4 implements the reviewed conservative whole-copy policy through a concrete comparison dialog and an explicit per-copy replacement action. It replaces snapshot content and the chosen Library song order; retains service item identity/name, notes and item appearance; and leaves Library records, other copies and active output unchanged. Existing repository transactions support these semantics with source and service revision checks. There is no automatic or partial merge. Songs always require an explicit Library-order choice.
+
+Existing captured snapshot revision/token metadata supplies the source-version baseline. Older snapshots without it remain unknown. A different token is presented as a different version, not proof of lyric changes. No source-baseline migration or archive/schema increment is needed. This records the implemented policy; it does not claim participant or physical-display acceptance. See UPDATE_U6_SOURCE_REFRESH.md.
