@@ -1,8 +1,8 @@
-# Release acceptance — 0.7.0-rc.1
+# Release acceptance — 0.7.0-rc.2
 
 Rehearsal candidate, 17 October 2026. This release introduces Services → Prepare → Present, structured song authoring, bilingual search, read-only review, source comparison and explicit staged Apply/Take. It is not a claim that every interface acceptance scenario is complete.
 
-Automated verification: TypeScript, ESLint, 69 unit tests, 56 converter tests, 54 Chromium integration tests and repository-subpath PWA validation pass. The browser suite includes an actual 0.6.0 service-worker upgrade: activation waits during presentation, saved schema-2 content survives schema-3 migration, and the new output starts black. Essential controls remain reachable at 1280×720, 1024×768, 640×480 and 640×360 CSS pixels. The smallest viewport is a zoom proxy, not a physical Safari zoom test.
+Baseline 0.7.0-rc.1 automated verification: TypeScript, ESLint, 69 unit tests, 56 converter tests, 54 Chromium integration tests and repository-subpath PWA validation pass. The browser suite includes an actual 0.6.0 service-worker upgrade: activation waits during presentation, saved schema-2 content survives schema-3 migration, and the new output starts black. Essential controls remain reachable at 1280×720, 1024×768, 640×480 and 640×360 CSS pixels. The smallest viewport is a zoom proxy, not a physical Safari zoom test.
 
 Before upgrading, export a full backup outside browser storage. Stop all output windows before applying a downloaded update. Keep the original backup; browser storage is not a backup. Schema 3 writes backup format 5 and accepts formats 1–5. Do not assume an older application can read a newer backup.
 
@@ -84,3 +84,9 @@ The table records coverage, not blanket acceptance. “Partial” means automate
 | UI-68 — Sensitive-data handling | Partial | Targeted automated coverage is incomplete; review against the interface specification. |
 | UI-69 — Pastoral changes | Partial | Automated: presenter. Review full scenario and physical conditions. |
 | UI-70 — Pastoral walkthrough | Pending | Physical or participant rehearsal required. |
+
+## 0.7.0-rc.2 follow-up
+
+Manual Acer B247Y results cover windowed black startup, preview/Take separation, hidden-output blocking, restoration guidance and a user-confirmed deliberate reveal. The hidden caption and stale restore guidance were corrected and manually rechecked. See MANUAL_TESTS.md for exact observations and limitations. TypeScript and production bundling pass locally. Required GitHub Actions checks remain the deployment gate; the earlier baseline counts above must not be read as new evidence for this candidate until CI completes.
+
+Pending timeout expiry and late-acknowledgement behaviour have not been exercised manually. Browser visibility does not prove physical placement. The Safari/iPad fullscreen and desktop-visibility failures remain unresolved. The candidate is for rehearsal; unchanged physical, participant, media and offline acceptance gaps remain open.
