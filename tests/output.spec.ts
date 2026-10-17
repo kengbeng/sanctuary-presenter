@@ -5,7 +5,7 @@ test("black first, explicit reveal, navigation, blank, reload, reconnect, stop",
 }) => {
   const errors: string[] = [];
   context.on("page", (p) => p.on("pageerror", (e) => errors.push(e.message)));
-  await page.goto("./");
+  await page.goto("./#/app");
   const popupPromise = page.waitForEvent("popup");
   await page
     .getByRole("button", { name: "Start Presentation", exact: true })
@@ -49,7 +49,7 @@ test("test pattern never leaks selected service and output opens offline", async
   page,
   context,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   await expect(
     page.getByText("● App shell cached · offline ready"),
   ).toBeVisible();
@@ -86,7 +86,7 @@ test("direct output URL and popup denial stay safe", async ({ page }) => {
   await page.goto("./#/output");
   await expect(page.locator(".blackout")).toBeVisible();
   await expect(page.locator(".frame")).not.toBeVisible();
-  await page.goto("./");
+  await page.goto("./#/app");
   await page.evaluate(() => {
     window.open = () => null;
   });
@@ -132,7 +132,7 @@ test("automatic selection requires a choice for multiple secondary displays", as
       }),
     }),
   );
-  await page.goto("./");
+  await page.goto("./#/app");
   await page.getByRole("button", { name: "Configure Display" }).click();
   await expect(
     page.getByText("Select the intended secondary display."),
@@ -157,7 +157,7 @@ test("retired output is quarantined and stale/wrong-session commands are rejecte
   page,
   context,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   const promise = page.waitForEvent("popup");
   await page
     .getByRole("button", { name: "Start Presentation", exact: true })
@@ -212,7 +212,7 @@ test("startup without activation waits for the fullscreen button", async ({
       },
     });
   });
-  await page.goto("./");
+  await page.goto("./#/app");
   const promise = page.waitForEvent("popup");
   await page
     .getByRole("button", { name: "Start Presentation", exact: true })
@@ -258,7 +258,7 @@ test("fullscreen rejection gives guidance and keeps output black", async ({
         ),
     });
   });
-  await page.goto("./");
+  await page.goto("./#/app");
   const promise = page.waitForEvent("popup");
   await page
     .getByRole("button", { name: "Start Presentation", exact: true })
@@ -281,7 +281,7 @@ test("fullscreen rejection gives guidance and keeps output black", async ({
 test("native cross-window maintenance locks survive silence and release after Test Output closes", async ({
   page,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   const canMaintain = () =>
     page.evaluate(() =>
       navigator.locks.request(

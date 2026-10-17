@@ -8,7 +8,7 @@ test("bilingual library, repeated arrangement, independent service copy and pers
     dialogs.push(d.message());
     await d.accept();
   });
-  await page.goto("./");
+  await page.goto("./#/app");
   await page
     .getByRole("button", { name: "Library & planner", exact: true })
     .click();
@@ -136,7 +136,7 @@ test("bilingual library, repeated arrangement, independent service copy and pers
   const clean = await context.browser()!.newContext();
   const restored = await clean.newPage();
   restored.on("dialog", (d) => d.accept());
-  await restored.goto("./");
+  await restored.goto("./#/app");
   await restored
     .getByRole("button", { name: "Library & planner", exact: true })
     .click();
@@ -162,7 +162,7 @@ test("local image import, reference protection, output readiness and malformed r
   context,
 }) => {
   page.on("dialog", (d) => d.accept());
-  await page.goto("./");
+  await page.goto("./#/app");
   await page
     .getByRole("button", { name: "Library & planner", exact: true })
     .click();

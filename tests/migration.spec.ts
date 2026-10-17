@@ -25,7 +25,7 @@ test("Python-converted v1 library restores in v2 with repeated bilingual slides,
       output,
     ]);
     page.on("dialog", (dialog) => dialog.accept());
-    await page.goto("./");
+    await page.goto("./#/app");
     await page
       .getByRole("button", { name: "Library & planner", exact: true })
       .click();
@@ -78,7 +78,7 @@ test("Python-converted v1 library restores in v2 with repeated bilingual slides,
     try {
       const restored = await clean.newPage();
       restored.on("dialog", (dialog) => dialog.accept());
-      await restored.goto("./");
+      await restored.goto("./#/app");
       await restored
         .getByRole("button", { name: "Library & planner", exact: true })
         .click();
@@ -138,7 +138,7 @@ test("SQLite conversion restores active content, projects bilingual snapshots an
       output,
     ]);
     page.on("dialog", (dialog) => dialog.accept());
-    await page.goto("./");
+    await page.goto("./#/app");
     await page
       .getByRole("button", { name: "Library & planner", exact: true })
       .click();
@@ -236,7 +236,7 @@ test("portable service conversion preserves edited snapshots, sections, language
       backup,
     ]);
     page.on("dialog", (dialog) => dialog.accept());
-    await page.goto("./");
+    await page.goto("./#/app");
     await page
       .getByRole("button", { name: "Library & planner", exact: true })
       .click();

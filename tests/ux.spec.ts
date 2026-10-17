@@ -12,7 +12,7 @@ async function start(page: Page) {
 test("blank shortcuts work from focused controls, preserve native editing and ignore modifiers", async ({
   page,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   const output = await start(page);
   await page
     .getByRole("button", { name: "Show / Restore", exact: true })
@@ -74,7 +74,7 @@ for (const size of [
     page,
   }) => {
     await page.setViewportSize(size);
-    await page.goto("./");
+    await page.goto("./#/app");
     const output = await start(page);
     for (const name of [
       "Next →",
@@ -110,7 +110,7 @@ for (const size of [
 test("clear pending/live labels and end-of-service state never imply another slide", async ({
   page,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   await expect(page.getByText("DEMO SERVICE", { exact: true })).toBeVisible();
   const output = await start(page);
   await expect(
@@ -139,7 +139,7 @@ test("clear pending/live labels and end-of-service state never imply another sli
 test("create first service, load an empty service without sample content and choose saved service", async ({
   page,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   await page
     .getByRole("button", { name: "Create first service", exact: true })
     .click();
@@ -195,7 +195,7 @@ test("long service navigation scrolls independently and choosing another service
     createdAt: now(),
     updatedAt: now(),
   }));
-  await page.goto("./");
+  await page.goto("./#/app");
   await page.evaluate(async (orders) => {
     const request = indexedDB.open("sanctuary:" + location.pathname);
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
