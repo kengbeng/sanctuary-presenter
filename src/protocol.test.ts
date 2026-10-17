@@ -53,3 +53,20 @@ it("every start and recovered ready stays blank", () => {
     expect(transition(state, "STOP")).toBe("STOPPED");
   }
 });
+it("validates cancellation acknowledgement and optional cue capability", () => {
+  const frameId = "f9cc1e85-0178-4d35-ae3b-1797b422a104";
+  const message = {
+    v: 1,
+    session: "s",
+    instance: "i",
+    seq: 1,
+    type: "CANCELLED",
+    frameId,
+    visibleFrameId: frameId,
+    cue: true,
+  };
+  expect(valid(message, "s")).toBe(true);
+  expect(valid({ ...message, frameId: undefined }, "s")).toBe(false);
+  expect(valid({ ...message, visibleFrameId: "bad" }, "s")).toBe(false);
+  expect(valid({ ...message, cue: "true" }, "s")).toBe(false);
+});

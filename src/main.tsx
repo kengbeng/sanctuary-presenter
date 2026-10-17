@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { createRoot } from "react-dom/client";
 import { PresentationLease, applySafeUpdate } from "./coordination";
@@ -21,11 +21,15 @@ import {
 } from "./display";
 import "./style.css";
 import { Library } from "./Library";
+import { ServiceWorkspace } from "./ServiceWorkspace";
+import { ModernPresenter } from "./ModernPresenter";
+import { presentationPath, sectionJump, type ExtraSection } from "./navigation";
 import { SlideFrame, prepareMedia } from "./SlideFrame";
 import { db } from "./repository";
 import {
   defaultStyle,
   servicePages,
+  pageReadinessIssue,
   type Page,
   type ServiceOrder,
 } from "./model";
@@ -36,13 +40,11 @@ const samplePages: Page[] = slides.map((s, i) => ({
   secondary: "",
   style: { ...defaultStyle, fontSize: 69 },
 }));
-const isOutput = location.hash.startsWith("#/output");
 const instance = crypto.randomUUID();
 const channel =
   typeof BroadcastChannel !== "undefined"
     ? new BroadcastChannel(channelName())
     : null;
-const params = new URLSearchParams(location.hash.split("?")[1]);
 function Frame({
   slide,
   test = false,
@@ -60,8 +62,22 @@ function Frame({
   );
 }
 function Output() {
+  const params = new URLSearchParams(location.hash.split("?")[1]);
   const session = params.get("session") || "";
   const test = params.get("test") === "1";
+  const cue = params.get("cue") === "1";
+  type Slot = { page: Page; frameId: string; generation: number };
+  const [slots, setSlots] = useState<Array<Slot | undefined>>([
+    undefined,
+    undefined,
+  ]);
+  const slotsRef = useRef(slots);
+  slotsRef.current = slots;
+  const [front, setFront] = useState(0);
+  const frontRef = useRef(0);
+  const pendingSlot = useRef<number | null>(null);
+  const frameIdentity = useRef<string | undefined>(undefined);
+  const [tools, setTools] = useState(true);
   const [blank, setBlank] = useState(true);
   const [slide, setSlide] = useState(0);
   const [outputPage, setOutputPage] = useState<Page>();
@@ -86,6 +102,7 @@ function Output() {
       instance,
       seq: ++seq.current,
       type,
+      ...(cue ? { cue: true, frameId: frameIdentity.current } : {}),
       ...extra,
     });
   useEffect(() => {
@@ -113,6 +130,8 @@ function Output() {
       if (m.type === "SYNC_STATE") {
         generation.current++;
         pendingLoad.current?.abort();
+        pendingSlot.current = null;
+        blankRef.current = true;
         setBlank(true);
         setConnected(true);
         requestAnimationFrame(() =>
@@ -124,14 +143,32 @@ function Output() {
         );
       }
       if (m.type === "HEARTBEAT") send("HEARTBEAT");
+      if (cue && m.type === "SETUP_CONTROLS") setTools(true);
+      if (cue && m.type === "CANCEL_PENDING") {
+        generation.current++;
+        pendingLoad.current?.abort();
+        pendingSlot.current = null;
+        setSlots((previous) =>
+          previous.map((slot, index) =>
+            index === frontRef.current ? slot : undefined,
+          ),
+        );
+        send("CANCELLED", {
+          frameId: m.frameId,
+          visibleFrameId: frameIdentity.current,
+          blank: blankRef.current,
+        });
+      }
       if (m.type === "SHOW_SLIDE") {
         const current = ++generation.current;
         pendingLoad.current?.abort();
         const controller = new AbortController();
         pendingLoad.current = controller;
-        renderReady.current = false;
-        setBlank(true);
-        send("MEDIA_STATUS", { rendered: false });
+        if (!cue) {
+          renderReady.current = false;
+          setBlank(true);
+        }
+        send("MEDIA_STATUS", { rendered: false, frameId: m.frameId });
         void (async () => {
           try {
             const page = m.frameId
@@ -145,6 +182,56 @@ function Output() {
               ? { page, warnings: [] }
               : await prepareMedia(page, controller.signal);
             if (current !== generation.current) return;
+            if (cue && m.frameId) {
+              const front = slotsRef.current[frontRef.current];
+              if (
+                front &&
+                JSON.stringify(front.page) === JSON.stringify(prepared.page)
+              ) {
+                frameIdentity.current = m.frameId;
+                setSlots((previous) =>
+                  previous.map((slot, index) =>
+                    index === frontRef.current && slot
+                      ? { ...slot, frameId: m.frameId!, generation: current }
+                      : slot,
+                  ),
+                );
+                pendingSlot.current = null;
+                blankRef.current = false;
+                setBlank(false);
+                setTools(false);
+                requestAnimationFrame(() => {
+                  if (current === generation.current)
+                    send("OUTPUT_STATUS", {
+                      frameId: m.frameId,
+                      blank: false,
+                      rendered: true,
+                      fullscreen: !!document.fullscreenElement,
+                    });
+                });
+              } else {
+                const back = 1 - frontRef.current;
+                pendingSlot.current = back;
+                setSlots((previous) =>
+                  previous.map((slot, index) =>
+                    index === back
+                      ? {
+                          page: prepared.page,
+                          frameId: m.frameId!,
+                          generation: current,
+                        }
+                      : slot,
+                  ),
+                );
+              }
+              for (const warning of prepared.warnings)
+                send("MEDIA_STATUS", {
+                  error: warning,
+                  rendered: false,
+                  frameId: m.frameId,
+                });
+              return;
+            }
             setOutputPage(prepared.page);
             for (const warning of prepared.warnings)
               send("MEDIA_STATUS", { error: warning, rendered: true });
@@ -152,14 +239,18 @@ function Output() {
             setBlank(false);
           } catch (e) {
             if (current !== generation.current) return;
+            blankRef.current = true;
+            pendingSlot.current = null;
             setBlank(true);
             send("MEDIA_STATUS", {
+              frameId: m.frameId,
               rendered: false,
               error:
                 e instanceof Error ? e.message : "Slide preparation failed.",
               blank: true,
             });
             send("ERROR", {
+              frameId: m.frameId,
               error:
                 e instanceof Error ? e.message : "Slide preparation failed.",
               blank: true,
@@ -168,9 +259,19 @@ function Output() {
         })();
       }
       if (m.type === "SET_BLANK") {
+        blankRef.current = true;
+        pendingSlot.current = null;
+        setTools(true);
         generation.current++;
         pendingLoad.current?.abort();
         setBlank(true);
+        requestAnimationFrame(() =>
+          send("OUTPUT_STATUS", {
+            blank: true,
+            rendered: true,
+            fullscreen: !!document.fullscreenElement,
+          }),
+        );
       }
       if (m.type === "STOP_PRESENTATION") {
         ended.current = true;
@@ -265,7 +366,82 @@ function Output() {
         hidden={!blank}
         aria-label="Congregation output is black"
       />
-      {outputPage && connected && (
+      {cue &&
+        connected &&
+        slots.map(
+          (slot, index) =>
+            slot && (
+              <div
+                key={index}
+                className="output-surface cue-buffer"
+                data-front={front === index}
+                style={{
+                  visibility: front === index && !blank ? "visible" : "hidden",
+                  zIndex: front === index ? 2 : 1,
+                }}
+                aria-hidden={front !== index || blank}
+              >
+                <SlideFrame
+                  page={slot.page}
+                  preview={false}
+                  test={test}
+                  active={front === index && !blank}
+                  reportPrepared={true}
+                  onReady={() => {
+                    if (
+                      slot.generation !== generation.current ||
+                      pendingSlot.current !== index
+                    )
+                      return;
+                    pendingSlot.current = null;
+                    frontRef.current = index;
+                    frameIdentity.current = slot.frameId;
+                    renderReady.current = true;
+                    blankRef.current = false;
+                    setFront(index);
+                    setBlank(false);
+                    setTools(false);
+                    requestAnimationFrame(() => {
+                      if (slot.generation === generation.current)
+                        send("OUTPUT_STATUS", {
+                          frameId: slot.frameId,
+                          blank: false,
+                          rendered: true,
+                          fullscreen: !!document.fullscreenElement,
+                        });
+                    });
+                  }}
+                  onWarning={(error) => {
+                    if (slot.generation === generation.current)
+                      send("MEDIA_STATUS", {
+                        frameId: slot.frameId,
+                        error,
+                        rendered: front === index,
+                      });
+                  }}
+                  onError={(error) => {
+                    if (
+                      index !== frontRef.current &&
+                      slot.generation !== generation.current
+                    )
+                      return;
+                    generation.current++;
+                    pendingLoad.current?.abort();
+                    pendingSlot.current = null;
+                    blankRef.current = true;
+                    setBlank(true);
+                    setTools(true);
+                    send("ERROR", {
+                      frameId: slot.frameId,
+                      error,
+                      blank: true,
+                    });
+                  }}
+                />
+              </div>
+            ),
+        )}
+      {!cue && outputPage && connected && (
         <div
           className="output-surface"
           style={{ display: blank ? "none" : "flex" }}
@@ -298,12 +474,14 @@ function Output() {
           />
         </div>
       )}
-      <div className="output-tools">
+      <div className="output-tools" hidden={cue && !blank && !tools}>
         <button onClick={fullscreen}>Enter Fullscreen</button>
         <button
           onClick={() => {
             generation.current++;
             pendingLoad.current?.abort();
+            pendingSlot.current = null;
+            blankRef.current = true;
             setBlank(true);
           }}
         >
@@ -319,8 +497,35 @@ function Output() {
   );
 }
 function Operator() {
-  const [view, setView] = useState<"present" | "library">("present");
+  const modern = location.hash !== "#/app";
+  const [extra, setExtra] = useState<ExtraSection>();
+  const resetNavigation = useRef(() => {});
+  const [liveFrame, setLiveFrame] = useState<{
+    page: Page;
+    frameId: string;
+    version: number;
+  }>();
+  const takeRecords = useRef(
+    new Map<string, { page: Page; frameId: string; version: number }>(),
+  );
+  const takeWarnings = useRef(new Map<string, string[]>());
+  const pendingTake = useRef<string | undefined>(undefined);
+  const cancelWaiter = useRef<
+    { id: string; done: (message: Message) => void } | undefined
+  >(undefined);
+  const version = useRef(0);
+  const [applying, setApplying] = useState(false);
+  const applyGeneration = useRef(0);
+  const [stagedId, setStagedId] = useState<string>();
+  const [pinsReady, setPinsReady] = useState(true);
+  const [cueReady, setCueReady] = useState(false);
+  const [blankPending, setBlankPending] = useState(false);
+  const blankIntent = useRef(false);
+  const [view, setView] = useState<
+    "services" | "prepare" | "review" | "present" | "library"
+  >(location.hash === "#/app" ? "present" : "services");
   const [loaded, setLoaded] = useState<ServiceOrder>();
+  const [workspaceGeneration, setWorkspaceGeneration] = useState(0);
   const savedServices =
     useLiveQuery(
       () => db.services.orderBy("updatedAt").reverse().toArray(),
@@ -334,7 +539,7 @@ function Operator() {
 
   const [mediaState, setMediaState] = useState("Bundled text ready");
   const frames = loaded
-    ? servicePages(loaded)
+    ? presentationPath(loaded, extra)
     : samplePages.map((p) => ({ ...p, itemTitle: p.title, notes: "" }));
   const framesRef = useRef(frames);
   framesRef.current = frames;
@@ -357,7 +562,49 @@ function Operator() {
     secondary: "",
     style: defaultStyle,
   };
+  resetNavigation.current = () => {
+    if (!extra || !loaded) return;
+    const base = servicePages(loaded);
+    const exact = base.findIndex((page) => page.id === currentFrame.id);
+    setSlide(
+      exact >= 0
+        ? exact
+        : Math.min(extra.origin + 1, Math.max(0, base.length - 1)),
+    );
+    setExtra(undefined);
+  };
   const [test, setTest] = useState(false);
+  const [preparedPreview, setPreparedPreview] = useState<{
+    key: string;
+    page: Page;
+    warnings: string[];
+  }>();
+  const [previewError, setPreviewError] = useState("");
+  const previewKey = JSON.stringify(currentFrame);
+  useEffect(() => {
+    if (!modern || view !== "present") return;
+    const controller = new AbortController();
+    setPreparedPreview(undefined);
+    setPreviewError("");
+    const issue = pageReadinessIssue(currentFrame);
+    if (issue && !test) {
+      setPreviewError(issue);
+      return;
+    }
+    void prepareMedia(test ? samplePages[0] : currentFrame, controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted)
+          setPreparedPreview({
+            key: previewKey,
+            page: result.page,
+            warnings: result.warnings,
+          });
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setPreviewError(String(error));
+      });
+    return () => controller.abort();
+  }, [modern, view, previewKey, test]);
   const [mode, setMode] = useState("automatic");
   const [screens, setScreens] = useState<Display[]>([]);
   const [target, setTarget] = useState("");
@@ -430,7 +677,11 @@ function Operator() {
       const m = e.data;
       if (m.type === "HELLO") {
         if (retired.current.has(m.instance)) return;
+        if (modern) resetNavigation.current();
         desiredVisible.current = false;
+        pendingTake.current = undefined;
+        setLiveFrame(undefined);
+        setCueReady(false);
         if (active.current && active.current !== m.instance) {
           send("SET_BLANK");
           retired.current.add(active.current);
@@ -444,7 +695,11 @@ function Operator() {
       if (m.instance !== active.current || !fresh(m.seq, last.current)) return;
       last.current = m.seq;
       beat.current = Date.now();
+      const waiter = cancelWaiter.current;
+      if (m.type === "CANCELLED" && waiter && waiter.id === m.frameId)
+        waiter.done(m);
       if (m.type === "READY") {
+        setCueReady(!!m.cue);
         setFull(!!m.fullscreen);
         change("READY");
         setNotice("Output acknowledged. Verify display placement before Show.");
@@ -452,19 +707,36 @@ function Operator() {
       if (m.type === "OUTPUT_STATUS") {
         setFull(!!m.fullscreen);
         if (m.rendered) {
-          if (m.blank) change("BLANK");
-          else if (desiredVisible.current) {
+          if (m.blank && (!modern || !desiredVisible.current)) {
+            if (modern && blankIntent.current)
+              setNotice(
+                "Congregation output confirmed black. Preview a slide and Take when ready.",
+              );
+            blankIntent.current = false;
+            setBlankPending(false);
+            change("BLANK");
+            if (modern) setLiveFrame(undefined);
+          } else if (
+            !m.blank &&
+            desiredVisible.current &&
+            (!modern || m.frameId === pendingTake.current)
+          ) {
             change("SHOW");
             setMediaState("Ready");
-            setNotice((previous) =>
-              previous.startsWith("Preparing selected slide")
-                ? "Slide is live. Blank hides output immediately."
-                : previous,
-            );
+            if (modern && m.frameId) {
+              const confirmed = takeRecords.current.get(m.frameId);
+              if (confirmed) setLiveFrame(confirmed);
+            }
+            if (modern)
+              setNotice(
+                "Taken to congregation output. Selection now changes preview only. " +
+                  (takeWarnings.current.get(m.frameId ?? "") ?? []).join(" "),
+              );
           }
         }
       }
       if (m.type === "MEDIA_STATUS") {
+        if (modern && m.frameId && m.frameId !== pendingTake.current) return;
         if (m.error) setNotice(m.error);
         setMediaState(
           m.error
@@ -477,6 +749,8 @@ function Operator() {
       if (m.type === "ERROR") {
         if (m.blank) {
           desiredVisible.current = false;
+          pendingTake.current = undefined;
+          setLiveFrame(undefined);
           change("BLANK");
         }
         setNotice(m.error || "Output error");
@@ -552,6 +826,16 @@ function Operator() {
     }
   }
   function stop() {
+    blankIntent.current = false;
+    resetNavigation.current();
+    setBlankPending(false);
+    takeWarnings.current.clear();
+    takeRecords.current.clear();
+    applyGeneration.current++;
+    pendingTake.current = undefined;
+    setLiveFrame(undefined);
+    setApplying(false);
+    setExtra(undefined);
     setNotice("Output closed. A new session will start black.");
     operatorLease.current.release();
     const previous = session.current;
@@ -572,14 +856,25 @@ function Operator() {
     setFull(false);
   }
   function start(isTest: boolean) {
+    blankIntent.current = false;
     if (live.current && phaseRef.current !== "DISCONNECTED") return;
+    applyGeneration.current++;
+    setApplying(false);
+    setBlankPending(false);
     const previous = session.current;
-    if (previous)
+    if (previous && !modern)
       void db.frames
         .where("sessionId")
         .equals(previous)
         .delete()
         .catch(() => {});
+    takeWarnings.current.clear();
+    takeRecords.current.clear();
+    pendingTake.current = undefined;
+    setLiveFrame(undefined);
+    setCueReady(false);
+    resetNavigation.current();
+    setExtra(undefined);
     showGeneration.current++;
     setSending(false);
     if (!channel) {
@@ -617,8 +912,26 @@ function Operator() {
       mode === "automatic"
         ? new ChromiumDisplayAdapter()
         : new ManualDisplayAdapter()
-    ).open(outputUrl(session.current, isTest, requestFull), d);
+    ).open(
+      outputUrl(session.current, isTest, requestFull) +
+        (modern ? "&cue=1" : ""),
+      d,
+    );
     const openedSession = session.current;
+    if (modern && loaded && !isTest) {
+      setPinsReady(false);
+      void db
+        .pinServiceSnapshot(loaded, openedSession, false, previous)
+        .then(() => {
+          if (session.current === openedSession) setPinsReady(true);
+        })
+        .catch((error) => {
+          if (session.current === openedSession) {
+            setNotice("Could not prepare this service: " + String(error));
+            setPinsReady(false);
+          }
+        });
+    } else setPinsReady(true);
     operatorLease.current.release();
     if (popup.current)
       void operatorLease.current.acquire().then((acquired) => {
@@ -654,11 +967,24 @@ function Operator() {
   async function transmit(index: number) {
     const token = ++showGeneration.current;
     const currentSession = session.current;
-    const page = framesRef.current[index];
+    const page = modern
+      ? test
+        ? samplePages[0]
+        : preparedPreview?.key === previewKey
+          ? preparedPreview.page
+          : undefined
+      : framesRef.current[index];
     if (!page) {
       setNotice(
         "This service has no slides. Add content in Library & planner.",
       );
+      return;
+    }
+    const readinessIssue = pageReadinessIssue(page);
+    if (readinessIssue) {
+      blankOutput();
+      setMediaState("Empty slide");
+      setNotice(readinessIssue);
       return;
     }
     setSending(true);
@@ -673,6 +999,16 @@ function Operator() {
         return;
       }
       desiredVisible.current = true;
+      pendingTake.current = frameId;
+      takeWarnings.current.set(
+        frameId,
+        modern ? (preparedPreview?.warnings ?? []) : [],
+      );
+      takeRecords.current.set(frameId, {
+        page,
+        frameId,
+        version: version.current,
+      });
       send("SHOW_SLIDE", { frameId });
     } catch (error) {
       if (token === showGeneration.current)
@@ -682,17 +1018,37 @@ function Operator() {
     }
   }
   function show() {
+    if (
+      modern &&
+      (applying ||
+        blankPending ||
+        !pinsReady ||
+        !cueReady ||
+        preparedPreview?.key !== previewKey ||
+        !!previewError)
+    )
+      return;
     if (["READY_BLANK", "BLANKED", "LIVE"].includes(phaseRef.current)) {
-      setNotice("Preparing selected slide. Output stays black until ready.");
+      setNotice(
+        modern
+          ? "Preparing Take. Current output remains unchanged until the slide is ready."
+          : "Preparing selected slide. Output stays black until ready.",
+      );
       void transmit(slide);
     }
   }
   function blankOutput() {
+    blankIntent.current =
+      modern && live.current && phaseRef.current !== "DISCONNECTED";
+    setBlankPending(blankIntent.current);
+    pendingTake.current = undefined;
     setNotice(
       live.current
         ? phaseRef.current === "DISCONNECTED"
           ? "Blank requested. Connection lost; verify the congregation display."
-          : "Output is black. Navigation changes the pending slide; Show reveals it."
+          : modern
+            ? "Blank requested. Waiting for output confirmation."
+            : "Output is black. Navigation changes the pending slide; Show reveals it."
         : "Output is closed. Start a session to show content.",
     );
     showGeneration.current++;
@@ -705,12 +1061,16 @@ function Operator() {
     const next = Math.max(0, Math.min(framesRef.current.length - 1, n));
     setSlide(next);
     if (
+      !modern &&
       desiredVisible.current &&
       ["LIVE", "BLANKED", "READY_BLANK"].includes(phaseRef.current)
     )
       void transmit(next);
   }
   function loadService(order: ServiceOrder) {
+    setExtra(undefined);
+    setStagedId(undefined);
+    version.current++;
     blankOutput();
     setLoaded(order);
     setSlide(0);
@@ -723,7 +1083,131 @@ function Operator() {
         setNotice("Service loaded, but its selection could not be saved."),
       );
   }
+  async function applyStaged() {
+    const staged = savedServices.find(
+      (order) => order.id === (stagedId ?? loaded?.id),
+    );
+    if (!staged || !modern || applying || workspaceSaving) return;
+    const generation = ++applyGeneration.current,
+      currentSession = session.current;
+    const controller = new AbortController();
+    setApplying(true);
+    setNotice("Validating saved changes. Live output remains unchanged.");
+    try {
+      const path = servicePages(staged);
+      if (!path.length)
+        throw Error(
+          "The staged service has no presenting pages. Add content before applying.",
+        );
+      for (const page of path) {
+        if (generation !== applyGeneration.current)
+          throw Error("Apply cancelled.");
+        await prepareMedia(page, controller.signal);
+      }
+      if (
+        currentSession !== session.current ||
+        generation !== applyGeneration.current
+      )
+        throw Error("Output session changed; Apply again after reconnecting.");
+      if (live.current) {
+        if (!cueReady)
+          throw Error(
+            "Reconnect the output with this app version before applying changes.",
+          );
+        showGeneration.current++;
+        setSending(false);
+        const cancelled = await new Promise<Message>((resolve, reject) => {
+          const requestId = crypto.randomUUID();
+          const timer = setTimeout(() => {
+            if (cancelWaiter.current?.id === requestId)
+              cancelWaiter.current = undefined;
+            reject(
+              Error(
+                "Output did not confirm cancellation. Changes were not applied; verify connection.",
+              ),
+            );
+          }, 2500);
+          cancelWaiter.current = {
+            id: requestId,
+            done: (message) => {
+              clearTimeout(timer);
+              cancelWaiter.current = undefined;
+              resolve(message);
+            },
+          };
+          send("CANCEL_PENDING", { frameId: requestId });
+        });
+        pendingTake.current = undefined;
+        setMediaState("Ready");
+        if (cancelled.blank) {
+          desiredVisible.current = false;
+          setLiveFrame(undefined);
+          change("BLANK");
+        } else if (cancelled.visibleFrameId) {
+          const known = takeRecords.current.get(cancelled.visibleFrameId);
+          if (!known)
+            throw Error(
+              "Output frame could not be confirmed. Blank and retry Apply.",
+            );
+          setLiveFrame(known);
+        }
+        await db.pinServiceSnapshot(staged, currentSession, true);
+        if (session.current !== currentSession)
+          await db.frames.where("sessionId").equals(currentSession).delete();
+      } else {
+        const saved = await db.services.get(staged.id);
+        if (!saved || saved.revisionToken !== staged.revisionToken)
+          throw Error(
+            "The staged service changed during preparation. Apply again.",
+          );
+      }
+      if (
+        currentSession !== session.current ||
+        generation !== applyGeneration.current
+      )
+        throw Error("Output changed during Apply. Saved changes are retained.");
+      const source =
+        "sourcePageId" in currentFrame ? currentFrame.sourcePageId : undefined;
+      const match = path.findIndex(
+        (page) =>
+          page.itemId ===
+            ("itemId" in currentFrame ? currentFrame.itemId : undefined) &&
+          page.sourcePageId === source,
+      );
+      setExtra(undefined);
+      setLoaded(structuredClone(staged));
+      setStagedId(undefined);
+      setSlide(Math.max(0, match));
+      version.current++;
+      setNotice(
+        "Changes applied. Live words are unchanged. Preview a slide and Take when ready.",
+      );
+    } catch (error) {
+      setNotice("Apply failed: " + String(error));
+    } finally {
+      controller.abort();
+      if (generation === applyGeneration.current) setApplying(false);
+    }
+  }
+  function jumpSection(itemId: string, sectionId: string) {
+    if (!loaded || !("sourcePageId" in currentFrame)) return;
+    const jump = sectionJump(
+      loaded,
+      currentFrame as import("./model").PresentationPage,
+      sectionId,
+      extra,
+      itemId,
+    );
+    if (jump) {
+      setExtra(jump.extra);
+      setSlide(jump.index);
+    }
+  }
   async function createService() {
+    if (location.hash !== "#/app") {
+      setView("services");
+      return;
+    }
     try {
       const stamp = new Date().toISOString();
       const order: ServiceOrder = {
@@ -755,7 +1239,7 @@ function Operator() {
       const target = e.target instanceof Element ? e.target : null;
       if (
         target?.closest(
-          "input,select,textarea,[contenteditable]:not([contenteditable=false]),[role=textbox],[role=dialog]",
+          "input,select,textarea,[contenteditable]:not([contenteditable=false]),[role=textbox],dialog,[role=dialog]",
         )
       )
         return;
@@ -764,7 +1248,20 @@ function Operator() {
         blankOutput();
         return;
       }
+      if (modern && e.key.toLowerCase() === "b" && !e.shiftKey) {
+        e.preventDefault();
+        blankOutput();
+        return;
+      }
       if (view !== "present") return;
+      if (modern && e.repeat && (e.key.toLowerCase() !== "b" || e.shiftKey))
+        return;
+      if (modern && e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        show();
+        return;
+      }
+      if (target?.closest("[data-song-navigation]")) return;
       if (e.key === "ArrowRight") {
         e.preventDefault();
         navigate(slide + 1);
@@ -784,22 +1281,136 @@ function Operator() {
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [slide, view]);
+  }, [
+    slide,
+    view,
+    modern,
+    preparedPreview,
+    previewKey,
+    previewError,
+    blankPending,
+    applying,
+    pinsReady,
+    cueReady,
+    test,
+  ]);
+  const [workspaceSaving, setWorkspaceSaving] = useState(false);
   const isPreparing =
     sending || (desiredVisible.current && mediaState === "Preparing slide");
-  const outputLabel = isPreparing
-    ? "PREPARING"
-    : phase === "LIVE"
-      ? "LIVE"
-      : ["READY_BLANK", "BLANKED"].includes(phase)
-        ? "OUTPUT BLACK"
-        : phase === "DISCONNECTED"
-          ? "DISCONNECTED"
-          : phase === "STOPPED"
-            ? "OUTPUT STOPPED"
-            : phase === "IDLE"
-              ? "OUTPUT CLOSED"
-              : "CONNECTING";
+  const outputLabel =
+    blankPending && phase !== "DISCONNECTED"
+      ? "BLANKING"
+      : isPreparing
+        ? "PREPARING"
+        : phase === "LIVE"
+          ? "LIVE"
+          : ["READY_BLANK", "BLANKED"].includes(phase)
+            ? "OUTPUT BLACK"
+            : phase === "DISCONNECTED"
+              ? "DISCONNECTED"
+              : phase === "STOPPED"
+                ? "OUTPUT STOPPED"
+                : phase === "IDLE"
+                  ? "OUTPUT CLOSED"
+                  : "CONNECTING";
+  const displaySetup = (
+    <section className="setup" aria-label="Output setup">
+      <details
+        className="display-settings"
+        open={modern || setupOpen}
+        onToggle={(e) => {
+          if (!modern) setSetupOpen(e.currentTarget.open);
+        }}
+      >
+        <summary>Display setup</summary>
+        <p className="muted">
+          Every session starts black. Place the output on your projector before
+          showing a slide.
+        </p>
+        <label>
+          Display positioning
+          <select value={mode} onChange={(e) => setMode(e.target.value)}>
+            <option value="automatic">Automatic</option>
+            <option value="manual">Manual</option>
+          </select>
+        </label>
+        <button onClick={configure} disabled={sessionActive}>
+          Configure Display
+        </button>
+        <label>
+          Preferred display
+          <select value={target} onChange={(e) => setTarget(e.target.value)}>
+            <option value="">Manual / no screen selected</option>
+            {screens.map((d, i) => (
+              <option value={i} key={i}>
+                {d.label || `Discovered screen ${i + 1}`}{" "}
+                {d.isPrimary ? "(primary)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={requestFull}
+            onChange={(e) => setRequestFull(e.target.checked)}
+          />
+          Request fullscreen
+        </label>
+        <p className="muted">
+          Your browser may require clicking Enter Fullscreen inside the output
+          window.
+        </p>
+      </details>
+      {sessionActive && phase !== "DISCONNECTED" && (
+        <div className="placement-tools">
+          <p className="muted">
+            Verify the physical display before revealing content.
+          </p>
+          <button
+            onClick={() =>
+              setPlacement("Operator visually confirmed target display")
+            }
+          >
+            Confirm visible placement
+          </button>
+          <button
+            onClick={() => {
+              popup.current?.focus();
+              setNotice(
+                "Move output to the intended screen, use Enter Fullscreen there, then visually confirm placement.",
+              );
+            }}
+          >
+            Reposition Output
+          </button>
+        </div>
+      )}
+      {phase === "DISCONNECTED" && (
+        <div className="recovery">
+          <h3>Output connection lost</h3>
+          <p>
+            Reconnect opens a new black window. Verify placement, then Show.
+          </p>
+          <button className="primary" onClick={() => start(test)}>
+            Reconnect Output
+          </button>
+        </div>
+      )}
+      <details className="output-details">
+        <summary>Connection details</summary>
+        <dl>
+          <dt>Placement</dt>
+          <dd>{placement}</dd>
+          <dt>Fullscreen</dt>
+          <dd>{full ? "Active" : "Inactive"}</dd>
+          <dt>Media</dt>
+          <dd>{mediaState}</dd>
+        </dl>
+      </details>
+      <p className="muted">Preview is not proof of projector placement.</p>
+    </section>
+  );
   return (
     <div
       className={
@@ -810,9 +1421,21 @@ function Operator() {
       <header>
         <div className="brand">
           ✦ <strong>Sanctuary</strong>
-          <span>Presenter / v2</span>
+          <span>Presenter / v2 · {__APP_VERSION__}</span>
         </div>
         <nav className="tabs" aria-label="Workspace">
+          <button
+            aria-pressed={view === "services"}
+            onClick={() => setView("services")}
+          >
+            Services
+          </button>
+          <button
+            aria-pressed={view === "prepare" || view === "review"}
+            onClick={() => setView("prepare")}
+          >
+            Prepare
+          </button>
           <button
             aria-pressed={view === "present"}
             onClick={() => setView("present")}
@@ -823,15 +1446,46 @@ function Operator() {
             aria-pressed={view === "library"}
             onClick={() => setView("library")}
           >
-            Library & planner
+            {location.hash === "#/app" ? "Library & planner" : "Library"}
           </button>
         </nav>
       </header>
+      <div
+        className="service-pane"
+        hidden={view !== "services" && view !== "prepare" && view !== "review"}
+      >
+        <ServiceWorkspace
+          key={workspaceGeneration}
+          mode={
+            view === "services"
+              ? "services"
+              : view === "review"
+                ? "review"
+                : "prepare"
+          }
+          onMode={setView}
+          onLibrary={() => setView("library")}
+          sessionActive={sessionActive}
+          onBlank={blankOutput}
+          onSavingChange={setWorkspaceSaving}
+          onPresent={(order) => {
+            if (sessionActive) {
+              setStagedId(order.id);
+              setView("present");
+              setNotice(
+                "Saved version is staged. Apply changes, then preview and Take deliberately.",
+              );
+            } else loadService(order);
+          }}
+        />
+      </div>
       <div className="library-pane" hidden={view !== "library"}>
         <Library
+          showPlanner={location.hash === "#/app"}
           request={libraryRequest}
           onPresent={loadService}
           onRestored={() => {
+            setWorkspaceGeneration((value) => value + 1);
             blankOutput();
             setLoaded(undefined);
             setSlide(0);
@@ -840,7 +1494,77 @@ function Operator() {
           canRestore={!live.current && !otherActive}
         />
       </div>
-      <main className="workspace" hidden={view !== "present"}>
+      {modern && view === "present" && (
+        <ModernPresenter
+          order={loaded}
+          frames={frames}
+          selectedIndex={slide}
+          liveFrame={liveFrame?.page}
+          previousVersion={!!liveFrame && liveFrame.version !== version.current}
+          state={outputLabel}
+          ready={
+            pinsReady &&
+            cueReady &&
+            preparedPreview?.key === previewKey &&
+            !previewError &&
+            !applying &&
+            !(
+              isPreparing &&
+              pendingTake.current &&
+              takeRecords.current.get(pendingTake.current)?.page.id ===
+                currentFrame.id
+            )
+          }
+          previewError={previewError}
+          onPreviewError={setPreviewError}
+          sessionActive={sessionActive}
+          test={test}
+          notice={notice}
+          applying={applying || workspaceSaving}
+          stagedTitle={
+            savedServices.find((order) => order.id === stagedId)?.title
+          }
+          hasStagedChanges={
+            !!savedServices.find(
+              (order) =>
+                order.id === (stagedId ?? loaded?.id) &&
+                (order.id !== loaded?.id ||
+                  order.revisionToken !== loaded?.revisionToken),
+            )
+          }
+          onApply={() => void applyStaged()}
+          onPreview={navigate}
+          onSection={jumpSection}
+          onOccurrence={(itemId, occurrence, pageId) => {
+            if (!loaded) return;
+            setExtra(undefined);
+            setSlide(
+              Math.max(
+                0,
+                servicePages(loaded).findIndex(
+                  (page) =>
+                    page.itemId === itemId &&
+                    page.occurrenceIndex === occurrence &&
+                    (!pageId || page.sourcePageId === pageId),
+                ),
+              ),
+            );
+          }}
+          onTake={show}
+          onBlank={blankOutput}
+          onStart={start}
+          onStop={stop}
+          onPrepare={() => setView("prepare")}
+          setupOpen={setupOpen}
+          onSetup={setSetupOpen}
+          onSetupControls={() => {
+            send("SETUP_CONTROLS");
+            popup.current?.focus();
+          }}
+          setup={displaySetup}
+        />
+      )}
+      <main className="workspace" hidden={view !== "present" || modern}>
         <aside aria-label="Service navigation">
           <span className="eyebrow">
             {loaded ? "SERVICE ORDER" : "DEMO SERVICE"}
@@ -982,105 +1706,17 @@ function Operator() {
             </div>
           </div>
         </section>
-        <section className="setup" aria-label="Output setup">
-          <details
-            className="display-settings"
-            open={setupOpen}
-            onToggle={(e) => setSetupOpen(e.currentTarget.open)}
-          >
-            <summary>Display setup</summary>
-            <p className="muted">
-              Every session starts black. Place the output on your projector
-              before showing a slide.
-            </p>
-            <label>
-              Display positioning
-              <select value={mode} onChange={(e) => setMode(e.target.value)}>
-                <option value="automatic">Automatic</option>
-                <option value="manual">Manual</option>
-              </select>
-            </label>
-            <button onClick={configure} disabled={sessionActive}>
-              Configure Display
-            </button>
-            <label>
-              Preferred display
-              <select
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-              >
-                <option value="">Manual / no screen selected</option>
-                {screens.map((d, i) => (
-                  <option value={i} key={i}>
-                    {d.label || `Discovered screen ${i + 1}`}{" "}
-                    {d.isPrimary ? "(primary)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={requestFull}
-                onChange={(e) => setRequestFull(e.target.checked)}
-              />
-              Request fullscreen
-            </label>
-            <p className="muted">
-              Your browser may require clicking Enter Fullscreen inside the
-              output window.
-            </p>
-          </details>
-          {sessionActive && phase !== "DISCONNECTED" && (
-            <div className="placement-tools">
-              <p className="muted">
-                Verify the physical display before revealing content.
-              </p>
-              <button
-                onClick={() =>
-                  setPlacement("Operator visually confirmed target display")
-                }
-              >
-                Confirm visible placement
-              </button>
-              <button
-                onClick={() => {
-                  popup.current?.focus();
-                  setNotice(
-                    "Move output to the intended screen, use Enter Fullscreen there, then visually confirm placement.",
-                  );
-                }}
-              >
-                Reposition Output
-              </button>
-            </div>
-          )}
-          {phase === "DISCONNECTED" && (
-            <div className="recovery">
-              <h3>Output connection lost</h3>
-              <p>
-                Reconnect opens a new black window. Verify placement, then Show.
-              </p>
-              <button className="primary" onClick={() => start(test)}>
-                Reconnect Output
-              </button>
-            </div>
-          )}
-          <details className="output-details">
-            <summary>Connection details</summary>
-            <dl>
-              <dt>Placement</dt>
-              <dd>{placement}</dd>
-              <dt>Fullscreen</dt>
-              <dd>{full ? "Active" : "Inactive"}</dd>
-              <dt>Media</dt>
-              <dd>{mediaState}</dd>
-            </dl>
-          </details>
-          <p className="muted">Preview is not proof of projector placement.</p>
-        </section>
+        {!modern && displaySetup}
       </main>
-      <section className="live-controls" aria-label="Presentation controls">
+      <section
+        className="live-controls"
+        aria-label="Presentation controls"
+        hidden={
+          (modern && view === "present") ||
+          (!sessionActive &&
+            (view === "services" || view === "prepare" || view === "review"))
+        }
+      >
         <div
           className={
             "output-state state-" +
@@ -1095,57 +1731,76 @@ function Operator() {
               : phase === "LIVE"
                 ? "Congregation output acknowledged"
                 : ["READY_BLANK", "BLANKED"].includes(phase)
-                  ? "Show reveals the pending slide"
+                  ? modern
+                    ? "Output acknowledged black; return to Present to Take"
+                    : "Show reveals the pending slide"
                   : phase === "DISCONNECTED"
                     ? "Verify the congregation display"
                     : "New sessions always start black"}
           </span>
         </div>
-        <div className="live-buttons">
-          <button
-            onClick={() => navigate(slide - 1)}
-            disabled={view !== "present" || slide === 0 || !frames.length}
-          >
-            ← Previous
-          </button>
-          <span className="slide-count">
-            {frames.length ? slide + 1 : 0} / {frames.length}
-          </span>
-          <button
-            onClick={() => navigate(slide + 1)}
-            disabled={
-              view !== "present" || !frames.length || slide >= frames.length - 1
-            }
-          >
-            Next →
-          </button>
-          {!sessionActive && view === "present" && (
-            <>
-              <button onClick={() => start(true)}>Test Output</button>
-              <button className="primary" onClick={() => start(false)}>
-                Start Presentation
-              </button>
-            </>
-          )}
-          <button
-            className="show"
-            disabled={
-              view !== "present" ||
-              isPreparing ||
-              !frames.length ||
-              !["READY_BLANK", "BLANKED", "LIVE"].includes(phase)
-            }
-            onClick={show}
-          >
-            {test ? "Show Test Pattern" : "Show / Restore"}
-          </button>
-          <button className="blank" onClick={blankOutput}>
-            Blank
-          </button>
-          <button className="stop" disabled={!sessionActive} onClick={stop}>
-            Stop Presentation
-          </button>
-        </div>
+        {modern && (
+          <div className="live-buttons">
+            <button onClick={() => setView("present")}>
+              Return to presentation
+            </button>
+            <button className="blank" onClick={blankOutput}>
+              Blank screen
+            </button>
+            <button className="stop" disabled={!sessionActive} onClick={stop}>
+              End presentation
+            </button>
+          </div>
+        )}
+        {!modern && (
+          <div className="live-buttons">
+            <button
+              onClick={() => navigate(slide - 1)}
+              disabled={view !== "present" || slide === 0 || !frames.length}
+            >
+              ← Previous
+            </button>
+            <span className="slide-count">
+              {frames.length ? slide + 1 : 0} / {frames.length}
+            </span>
+            <button
+              onClick={() => navigate(slide + 1)}
+              disabled={
+                view !== "present" ||
+                !frames.length ||
+                slide >= frames.length - 1
+              }
+            >
+              Next →
+            </button>
+            {!sessionActive && view === "present" && (
+              <>
+                <button onClick={() => start(true)}>Test Output</button>
+                <button className="primary" onClick={() => start(false)}>
+                  Start Presentation
+                </button>
+              </>
+            )}
+            <button
+              className="show"
+              disabled={
+                view !== "present" ||
+                isPreparing ||
+                !frames.length ||
+                !["READY_BLANK", "BLANKED", "LIVE"].includes(phase)
+              }
+              onClick={show}
+            >
+              {test ? "Show Test Pattern" : "Show / Restore"}
+            </button>
+            <button className="blank" onClick={blankOutput}>
+              Blank
+            </button>
+            <button className="stop" disabled={!sessionActive} onClick={stop}>
+              Stop Presentation
+            </button>
+          </div>
+        )}
         <p className="control-notice notice" role="status">
           {notice}
         </p>
@@ -1156,7 +1811,7 @@ function Operator() {
             ? "● App shell cached · offline ready"
             : "○ Offline cache not yet confirmed"}
         </span>
-        <span>Keys: ← → navigate · B blank · S show · Esc blank</span>
+        <span>Keys: ← → preview · B blank · S take · Esc blank</span>
         {update && (
           <button
             disabled={live.current || otherActive || applyingUpdate}
@@ -1185,6 +1840,24 @@ function Operator() {
     </div>
   );
 }
-createRoot(document.getElementById("root")!).render(
-  isOutput ? <Output /> : <Operator />,
-);
+const Prototype = lazy(() => import("./WorkflowPrototype"));
+function AppRoutes() {
+  const [hash, setHash] = useState(location.hash);
+  useEffect(() => {
+    const changed = () => setHash(location.hash);
+    window.addEventListener("hashchange", changed);
+    return () => window.removeEventListener("hashchange", changed);
+  }, []);
+  if (hash === "#/workflow-prototype")
+    return (
+      <Suspense fallback={<p>Loading workflow preview…</p>}>
+        <Prototype />
+      </Suspense>
+    );
+  return hash.startsWith("#/output") ? (
+    <Output key={hash} />
+  ) : (
+    <Operator key={hash} />
+  );
+}
+createRoot(document.getElementById("root")!).render(<AppRoutes />);

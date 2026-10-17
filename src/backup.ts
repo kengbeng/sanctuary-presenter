@@ -2,6 +2,8 @@ import JSZip from "jszip";
 import { db, sha256, type PresenterDatabase } from "./repository";
 import {
   validateContent,
+  id,
+  contentCompatibilityIssues,
   validateMigration,
   type MigrationRecord,
   validateService,
@@ -69,7 +71,7 @@ export async function exportBackup(
   }
   const manifest: Manifest = {
     format: "sanctuary-presenter-backup",
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
     counts: {
       content: payload.content.length,
@@ -212,7 +214,7 @@ export async function readBackup(blob: Blob) {
   if (
     !manifest ||
     manifest.format !== "sanctuary-presenter-backup" ||
-    ![1, 2, 3, 4].includes(manifest.version) ||
+    ![1, 2, 3, 4, 5].includes(manifest.version) ||
     typeof manifest.exportedAt !== "string" ||
     !manifest.files ||
     typeof manifest.files !== "object" ||
@@ -280,8 +282,8 @@ export async function readBackup(blob: Blob) {
   unique(data.services.map((s) => s.id));
   unique(data.media.map((m) => m.id));
   unique(data.settings.map((s) => s.key));
-  for (const c of data.content) validateContent(c);
-  for (const s of data.services) validateService(s);
+  for (const c of data.content) validateContent(c, { legacy: true });
+  for (const s of data.services) validateService(s, { legacy: true });
   for (const s of data.settings)
     if (
       typeof s.value !== "string" ||
@@ -343,7 +345,21 @@ export async function readBackup(blob: Blob) {
   const selected = data.settings.find((s) => s.key === "selectedService");
   if (selected && !data.services.some((s) => s.id === selected.value))
     throw Error("Backup selected service is missing.");
-  return { data, media, manifest };
+  const compatibilityIssues = [
+    ...data.content.flatMap((c) =>
+      contentCompatibilityIssues(c).map(
+        (issue) => `Library “${c.title}”: ${issue}`,
+      ),
+    ),
+    ...data.services.flatMap((s) =>
+      s.items.flatMap((item) =>
+        contentCompatibilityIssues(item.snapshot).map(
+          (issue) => `Service “${s.title}”, item “${item.title}”: ${issue}`,
+        ),
+      ),
+    ),
+  ];
+  return { data, media, manifest, compatibilityIssues };
 }
 export async function restoreBackup(
   prepared: Awaited<ReturnType<typeof readBackup>>,
@@ -369,9 +385,21 @@ export async function restoreBackup(
         repo.provenance.clear(),
       ]);
       await repo.provenance.bulkAdd(prepared.data.provenance ?? []);
-      await repo.content.bulkAdd(prepared.data.content);
+      await repo.content.bulkAdd(
+        prepared.data.content.map((record) => ({
+          ...record,
+          revision: record.revision ?? 1,
+          revisionToken: id(),
+        })),
+      );
       await repo.media.bulkAdd(prepared.media);
-      await repo.services.bulkAdd(prepared.data.services);
+      await repo.services.bulkAdd(
+        prepared.data.services.map((record) => ({
+          ...record,
+          revision: record.revision ?? 1,
+          revisionToken: id(),
+        })),
+      );
       await repo.settings.bulkAdd(prepared.data.settings);
     },
   );

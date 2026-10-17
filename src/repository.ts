@@ -1,6 +1,10 @@
+import { refreshedItem, sameContent } from "./sourceRefresh";
 import Dexie, { type Table } from "dexie";
 import {
   type Content,
+  type Revisioned,
+  makeItem,
+  servicePages,
   type MigrationRecord,
   type MediaAsset,
   type ServiceOrder,
@@ -13,6 +17,7 @@ import {
   contentBackgrounds,
   serviceBackgrounds,
   validateContent,
+  contentCompatibilityIssues,
   validateService,
   id,
   now,
@@ -34,36 +39,217 @@ export class PresenterDatabase extends Dexie {
       frames: "id,sessionId,createdAt",
     });
     this.version(2).stores({ provenance: "id,createdAt" });
+    this.version(3)
+      .stores({})
+      .upgrade(async (tx) => {
+        for (const store of ["content", "services"])
+          await tx
+            .table(store)
+            .toCollection()
+            .modify((record) => {
+              record.revision = 1;
+              record.revisionToken = id();
+            });
+      });
   }
-  async saveContent(c: Content) {
+  private nextRevision(
+    incoming: Revisioned,
+    existing?: Revisioned,
+  ): Required<Revisioned> {
+    if (existing) {
+      if (
+        incoming.revision !== existing.revision ||
+        incoming.revisionToken !== existing.revisionToken
+      )
+        throw Error(
+          "This record changed in another window or was restored. Your edits are retained. Reload the saved version or keep a separate copy before retrying.",
+        );
+    } else if (
+      incoming.revision !== undefined ||
+      incoming.revisionToken !== undefined
+    ) {
+      throw Error(
+        "This record was deleted or replaced. Your edits are retained; create a separate copy instead of overwriting it.",
+      );
+    }
+    if (existing?.revision === Number.MAX_SAFE_INTEGER)
+      throw Error(
+        "Record revision limit reached. Export a backup and create a separate copy.",
+      );
+    return { revision: (existing?.revision ?? 0) + 1, revisionToken: id() };
+  }
+  async saveContent(c: Content): Promise<Content> {
     validateContent(c);
-    await this.transaction("rw", this.content, this.media, async () => {
-      await this.assertMedia(mediaRefs(c));
-      validateBackgroundMedia(
-        contentBackgrounds(c),
-        new Map((await this.media.toArray()).map((m) => [m.id, m])),
-      );
-      await this.content.put({
-        ...structuredClone(c),
-        title: c.title.trim(),
-        updatedAt: now(),
-      });
+    const saved = await this.transaction(
+      "rw",
+      this.content,
+      this.media,
+      async () => {
+        const revision = this.nextRevision(c, await this.content.get(c.id));
+        await this.assertMedia(mediaRefs(c));
+        validateBackgroundMedia(
+          contentBackgrounds(c),
+          new Map((await this.media.toArray()).map((m) => [m.id, m])),
+        );
+        const saved = {
+          ...structuredClone(c),
+          ...revision,
+          title: c.title.trim(),
+          updatedAt: now(),
+        };
+        await this.content.put(saved);
+        return saved;
+      },
+    );
+    Object.assign(c, {
+      revision: saved.revision,
+      revisionToken: saved.revisionToken,
+      updatedAt: saved.updatedAt,
+    });
+    return saved;
+  }
+  async saveService(s: ServiceOrder): Promise<ServiceOrder> {
+    validateService(s, { legacy: true });
+    const saved = await this.transaction(
+      "rw",
+      this.services,
+      this.media,
+      async () => {
+        const previous = await this.services.get(s.id);
+        const revision = this.nextRevision(s, previous);
+        // Existing legacy snapshots can be retained exactly, never silently rewritten.
+        for (const item of s.items) {
+          if (!contentCompatibilityIssues(item.snapshot).length) continue;
+          const old = previous?.items.find(
+            (candidate) => candidate.id === item.id,
+          );
+          if (
+            !old ||
+            JSON.stringify(old.snapshot) !== JSON.stringify(item.snapshot)
+          )
+            validateContent(item.snapshot);
+        }
+        await this.assertMedia(serviceMediaRefs(s));
+        validateBackgroundMedia(
+          serviceBackgrounds(s),
+          new Map((await this.media.toArray()).map((m) => [m.id, m])),
+        );
+        const saved = {
+          ...structuredClone(s),
+          ...revision,
+          title: s.title.trim(),
+          updatedAt: now(),
+        };
+        await this.services.put(saved);
+        return saved;
+      },
+    );
+    Object.assign(s, {
+      revision: saved.revision,
+      revisionToken: saved.revisionToken,
+      updatedAt: saved.updatedAt,
+    });
+    return saved;
+  }
+  async refreshServiceItem(
+    order: ServiceOrder,
+    itemId: string,
+    reviewedSource: Content,
+    arrangementId?: string,
+  ): Promise<ServiceOrder> {
+    const saved = await this.transaction(
+      "rw",
+      this.content,
+      this.services,
+      this.media,
+      async () => {
+        const source = await this.content.get(reviewedSource.id);
+        if (!source)
+          throw Error(
+            "Source no longer in Library. The service copy was not changed.",
+          );
+        if (
+          source.revision !== reviewedSource.revision ||
+          source.revisionToken !== reviewedSource.revisionToken ||
+          !sameContent(source, reviewedSource)
+        )
+          throw Error(
+            "The Library source changed after comparison. Reopen the comparison before replacing.",
+          );
+        const next = structuredClone(order),
+          index = next.items.findIndex((item) => item.id === itemId);
+        if (index < 0)
+          throw Error("The selected service item no longer exists.");
+        next.items[index] = refreshedItem(
+          next.items[index],
+          source,
+          arrangementId,
+        );
+        return this.saveService(next);
+      },
+    );
+    Object.assign(order, saved);
+    return saved;
+  }
+  async deleteContent(c: Content) {
+    await this.transaction("rw", this.content, async () => {
+      const saved = await this.content.get(c.id);
+      if (!saved) throw Error("This library item was already deleted.");
+      this.nextRevision(c, saved);
+      await this.content.delete(c.id);
     });
   }
-  async saveService(s: ServiceOrder) {
-    validateService(s);
-    await this.transaction("rw", this.services, this.media, async () => {
-      await this.assertMedia(serviceMediaRefs(s));
-      validateBackgroundMedia(
-        serviceBackgrounds(s),
-        new Map((await this.media.toArray()).map((m) => [m.id, m])),
-      );
-      await this.services.put({
-        ...structuredClone(s),
-        title: s.title.trim(),
-        updatedAt: now(),
-      });
+  async deleteService(s: ServiceOrder) {
+    await this.transaction("rw", this.services, this.settings, async () => {
+      const saved = await this.services.get(s.id);
+      if (!saved) throw Error("This service was already deleted.");
+      this.nextRevision(s, saved);
+      await this.services.delete(s.id);
+      if ((await this.settings.get("selectedService"))?.value === s.id)
+        await this.settings.delete("selectedService");
     });
+  }
+  /** itemId is a retry-stable operation identity supplied by the authoring action. */
+  async saveSongAndAdd(
+    c: Content,
+    s: ServiceOrder,
+    itemId: string,
+    arrangementId?: string,
+  ) {
+    const result = await this.transaction(
+      "rw",
+      this.content,
+      this.services,
+      this.media,
+      async () => {
+        const previous = await this.services.get(s.id);
+        const existingItem = previous?.items.find((item) => item.id === itemId);
+        if (existingItem) {
+          if (
+            existingItem.sourceId !== c.id ||
+            JSON.stringify(existingItem.snapshot) !== JSON.stringify(c)
+          )
+            throw Error(
+              "This add operation was already used for different content.",
+            );
+          // Verify the caller still owns the current versions; no stale success after restore/edit.
+          this.nextRevision(s, previous);
+          this.nextRevision(c, await this.content.get(c.id));
+          return { content: c, service: previous! };
+        }
+        const content = await this.saveContent(structuredClone(c));
+        const item = makeItem(content, arrangementId);
+        item.id = itemId;
+        const service = await this.saveService({
+          ...structuredClone(s),
+          items: [...s.items, item],
+        });
+        return { content, service };
+      },
+    );
+    Object.assign(c, result.content);
+    Object.assign(s, result.service);
+    return result;
   }
   async assertMedia(refs: string[]) {
     for (const ref of new Set(refs))
@@ -99,6 +285,54 @@ export class PresenterDatabase extends Dexie {
         const refs = await this.references(mediaId);
         if (refs.length) throw Error("Media is in use: " + refs.join(", "));
         await this.media.delete(mediaId);
+      },
+    );
+  }
+  async pinServiceSnapshot(
+    order: ServiceOrder,
+    sessionId: string,
+    verifySource = false,
+    retireSession?: string,
+  ) {
+    validateService(order);
+    return this.transaction(
+      "rw",
+      this.frames,
+      this.services,
+      this.media,
+      async () => {
+        if (verifySource) {
+          const saved = await this.services.get(order.id);
+          if (
+            !saved ||
+            saved.revisionToken !== order.revisionToken ||
+            saved.revision !== order.revision
+          )
+            throw Error(
+              "The staged service changed during preparation. Apply the latest saved version again.",
+            );
+        }
+        await this.assertMedia(serviceMediaRefs(order));
+        validateBackgroundMedia(
+          serviceBackgrounds(order),
+          new Map(
+            (await this.media.toArray()).map((asset) => [asset.id, asset]),
+          ),
+        );
+        const frames = [];
+        const omitted = order.items.flatMap((item) => {
+          const sectionOrder = item.snapshot.sections
+            .map((section) => section.id)
+            .filter((sectionId) => !item.sectionOrder.includes(sectionId));
+          return sectionOrder.length
+            ? servicePages({ ...order, items: [{ ...item, sectionOrder }] })
+            : [];
+        });
+        for (const page of [...servicePages(order), ...omitted])
+          frames.push(await this.prepareFrame(page, sessionId));
+        if (retireSession && retireSession !== sessionId)
+          await this.frames.where("sessionId").equals(retireSession).delete();
+        return frames;
       },
     );
   }

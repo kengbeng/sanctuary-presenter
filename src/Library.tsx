@@ -1,4 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { PasteLyrics } from "./PasteLyrics";
+import { SectionTools, SlideTools } from "./StructureTools";
+import {
+  indexContent,
+  findContent,
+  matchExcerpt,
+  similarSongs,
+} from "./search";
+import { SearchFilters } from "./SearchFilters";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./repository";
 import { exportBackup, readBackup, restoreBackup, download } from "./backup";
@@ -12,6 +21,8 @@ import {
   newPage,
   makeItem,
   contentPages,
+  contentCompatibilityIssues,
+  editableContentCopy,
   servicePages,
   syncAuto,
   id,
@@ -125,16 +136,18 @@ function StyleEditor({
     </>
   );
 }
-function PageEditor({
+export function PageEditor({
   page,
   change,
   media,
   previewPage,
+  showPreview = true,
 }: {
   page: Page;
   change: (p: Page) => void;
   media: { id: string; title: string; kind?: string }[];
   previewPage?: Page;
+  showPreview?: boolean;
 }) {
   return (
     <>
@@ -236,9 +249,11 @@ function PageEditor({
           change={(backgroundDesign) => change({ ...page, backgroundDesign })}
         />
       </details>
-      <div className="small-preview">
-        <SlideFrame page={previewPage ?? page} />
-      </div>
+      {showPreview && (
+        <div className="small-preview">
+          <SlideFrame page={previewPage ?? page} />
+        </div>
+      )}
     </>
   );
 }
@@ -253,6 +268,8 @@ function cloneContent(c: Content) {
   const copy = structuredClone(c),
     sections = new Map<string, string>();
   copy.id = id();
+  delete copy.revision;
+  delete copy.revisionToken;
   copy.title += " (copy)";
   copy.createdAt = now();
   for (const section of copy.sections) {
@@ -273,12 +290,15 @@ export function Library({
   onPresent,
   canRestore,
   onRestored,
+  showPlanner = true,
 }: {
+  showPlanner?: boolean;
   request?: { serviceId: string; token: string };
   onPresent: (service: ServiceOrder) => void;
   canRestore: boolean;
   onRestored: () => void;
 }) {
+  const [pasteStaging, setPasteStaging] = useState(false);
   const restoreAllowed = useRef(canRestore);
   restoreAllowed.current = canRestore;
   const content = useLiveQuery(() => db.content.toArray(), []) ?? [],
@@ -340,16 +360,22 @@ export function Library({
       .catch((e) => setMessage(String(e)));
   }, []);
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !pasteStaging) return;
     const guard = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", guard);
     return () => window.removeEventListener("beforeunload", guard);
-  }, [dirty]);
+  }, [dirty, pasteStaging]);
+  const draftGeneration = useRef(0);
   function edit(c: Content) {
-    if (dirty && !confirm("Discard unsaved library edits?")) return;
+    if (
+      (dirty || pasteStaging) &&
+      !confirm("Discard unsaved library edits and staged lyrics?")
+    )
+      return;
+    draftGeneration.current++;
     setDraft(structuredClone(c));
     setSectionIndex(0);
     setPageIndex(0);
@@ -359,25 +385,65 @@ export function Library({
   }
   function update(mutator: (c: Content) => void) {
     if (!draft) return;
+    const issues = contentCompatibilityIssues(draft);
+    if (issues.length) {
+      setMessage(
+        "Legacy original is read-only. Export a backup, then Create editable copy to retain hidden content and existing order.",
+      );
+      return;
+    }
     const c = structuredClone(draft);
     mutator(c);
+    draftGeneration.current++;
     setDraft(c);
     setDirty(true);
   }
   async function saveService(next: ServiceOrder) {
+    await serviceWrites.current;
+    const own = ownServiceVersions.current.get(next.id);
+    if (own && own.revision! > (next.revision ?? 0)) Object.assign(next, own);
     await db.saveService(next);
+    ownServiceVersions.current.set(next.id, {
+      revision: next.revision,
+      revisionToken: next.revisionToken,
+    });
     setService(next);
     await db.settings.put({ key: "selectedService", value: next.id });
   }
+  const serviceWrites = useRef(Promise.resolve());
+  const ownServiceVersions = useRef(
+    new Map<string, { revision?: number; revisionToken?: string }>(),
+  );
   function updateService(mutator: (s: ServiceOrder) => void) {
     if (!service) return;
     const next = structuredClone(service);
     mutator(next);
     setService(next);
-    void run(async () => {
+    const base = {
+      revision: service.revision,
+      revisionToken: service.revisionToken,
+    };
+    const queued = serviceWrites.current.then(async () => {
+      const own = ownServiceVersions.current.get(next.id);
+      if (own && own.revision! > (base.revision ?? 0)) Object.assign(next, own);
       await db.saveService(next);
+      ownServiceVersions.current.set(next.id, {
+        revision: next.revision,
+        revisionToken: next.revisionToken,
+      });
+      setService((current) =>
+        current?.id === next.id
+          ? {
+              ...current,
+              revision: next.revision,
+              revisionToken: next.revisionToken,
+            }
+          : current,
+      );
       setMessage("Service changes saved locally.");
     });
+    serviceWrites.current = queued.catch(() => {});
+    void run(() => queued);
   }
   const item = service?.items[itemIndex];
   const itemPages =
@@ -396,21 +462,20 @@ export function Library({
     });
   }
   const migrations = useLiveQuery(() => db.provenance.toArray(), []) ?? [];
-  const visible = content
-    .filter(
-      (c) =>
-        c.kind === tab &&
-        `${c.title} ${c.indexNumber} ${c.tags} ${c.author} ${c.sections.flatMap((s) => s.pages.map((p) => p.text + " " + p.secondary)).join(" ")} ${c.pages.map((p) => p.text + " " + p.secondary).join(" ")}`
-          .toLocaleLowerCase()
-          .includes(query.toLocaleLowerCase()),
-    )
-    .sort((a, b) =>
-      sort === "number"
-        ? a.indexNumber.localeCompare(b.indexNumber, undefined, {
-            numeric: true,
-          })
-        : a.title.localeCompare(b.title),
-    );
+  const searchIndex = useMemo(() => indexContent(content), [content]);
+  const [searchLanguage, setSearchLanguage] = useState("");
+  const [searchTag, setSearchTag] = useState("");
+  const visible = findContent(searchIndex, query, {
+    kind: tab === "media" ? undefined : tab,
+    language: searchLanguage,
+    tag: searchTag,
+  }).sort((a, b) =>
+    sort === "number"
+      ? a.indexNumber.localeCompare(b.indexNumber, undefined, {
+          numeric: true,
+        })
+      : a.title.localeCompare(b.title),
+  );
   async function removeContent(c: Content) {
     const refs = services.filter((s) =>
       s.items.some((i) => i.sourceId === c.id),
@@ -421,7 +486,7 @@ export function Library({
       )
     )
       return;
-    await db.content.delete(c.id);
+    await db.deleteContent(c);
     if (draft?.id === c.id) {
       setDraft(undefined);
       setDirty(false);
@@ -432,11 +497,23 @@ export function Library({
     updateService((s) => mutator(s.items[itemIndex]));
   }
   return (
-    <main className="library-workspace">
+    <main
+      className={"library-workspace" + (showPlanner ? "" : " library-only")}
+    >
       <div className="library-toolbar">
         <div>
-          <span className="eyebrow">LOCAL LIBRARY & SERVICE PLANNER</span>
-          <h2>Prepare your service</h2>
+          <span className="eyebrow">
+            {showPlanner
+              ? "LOCAL LIBRARY & SERVICE PLANNER"
+              : "REUSABLE LOCAL CONTENT"}
+          </span>
+          <h2>{showPlanner ? "Prepare your service" : "Library"}</h2>
+          {!showPlanner && (
+            <p className="muted">
+              Maintain reusable content here. Use Prepare to add saved songs or
+              media to your service.
+            </p>
+          )}
         </div>
         <div className="actions">
           <button
@@ -470,9 +547,14 @@ export function Library({
                     if (!restoreAllowed.current)
                       throw Error("Stop all presentations before restore.");
                     const prepared = await readBackup(file);
+                    if (prepared.compatibilityIssues.length) {
+                      setMessage(
+                        `Backup contains ${prepared.compatibilityIssues.length} legacy compatibility issue(s). Originals will be preserved; inspect affected content before editing.`,
+                      );
+                    }
                     if (
                       !confirm(
-                        `Replace all local content with this validated backup (${prepared.manifest.counts.content} library items, ${prepared.manifest.counts.services} services)? Export your current backup first.`,
+                        `Replace all local content with this validated backup (${prepared.manifest.counts.content} library items, ${prepared.manifest.counts.services} services)? ${prepared.compatibilityIssues.length ? `${prepared.compatibilityIssues.length} legacy issue(s); originals will be retained. ` : ""}Export your current backup first.`,
                       )
                     )
                       return;
@@ -484,7 +566,7 @@ export function Library({
                     setDirty(false);
                     setService(undefined);
                     setMessage(
-                      "Backup restored. Choose a restored service. Output stays stopped.",
+                      `Backup restored. Choose a restored service. Output stays stopped.${prepared.compatibilityIssues.length ? ` ${prepared.compatibilityIssues.length} legacy issue(s) retained; inspect library items before editing.` : ""}`,
                     );
                   });
               }}
@@ -524,7 +606,11 @@ export function Library({
                 key={t}
                 role="tab"
                 aria-selected={tab === t}
-                onClick={() => setTab(t)}
+                onClick={() => {
+                  setTab(t);
+                  setSearchLanguage("");
+                  setSearchTag("");
+                }}
               >
                 {t === "song" ? "Songs" : t === "slides" ? "Slides" : "Media"}
               </button>
@@ -538,6 +624,15 @@ export function Library({
               onChange={(e) => setQuery(e.target.value)}
             />
           </label>
+          {tab !== "media" && (
+            <SearchFilters
+              contents={content.filter((content) => content.kind === tab)}
+              language={searchLanguage}
+              tag={searchTag}
+              onLanguage={setSearchLanguage}
+              onTag={setSearchTag}
+            />
+          )}
           {tab !== "media" ? (
             <>
               <label>
@@ -560,6 +655,11 @@ export function Library({
                     onClick={() => edit(c)}
                   >
                     <strong>{c.title}</strong>
+                    {matchExcerpt(c, query) && (
+                      <small className="search-excerpt">
+                        {matchExcerpt(c, query)}
+                      </small>
+                    )}
                     <small>
                       {c.indexNumber && `${c.indexNumber} · `}
                       {c.primaryLanguage}
@@ -569,8 +669,9 @@ export function Library({
                 ))}
                 {!visible.length && (
                   <p className="muted">
-                    No {tab === "song" ? "songs" : "slide sets"} yet. Create one
-                    to get started.
+                    {query || searchLanguage || searchTag
+                      ? "No matches. Try fewer words or clear the filters."
+                      : `No ${tab === "song" ? "songs" : "slide sets"} yet. Create one to get started.`}
                   </p>
                 )}
               </div>
@@ -646,6 +747,7 @@ export function Library({
                       Delete
                     </button>
                     <button
+                      hidden={!showPlanner}
                       disabled={busy}
                       onClick={() =>
                         void run(async () => {
@@ -698,6 +800,15 @@ export function Library({
                   {dirty ? "Unsaved library edits" : "Saved / ready to edit"}
                 </span>
               </div>
+              {similarSongs(searchIndex, draft).length > 0 && (
+                <p role="status">
+                  Similar items already in Library:{" "}
+                  {similarSongs(searchIndex, draft)
+                    .map((content) => content.title)
+                    .join(", ")}
+                  . Saving keeps this as a separate item.
+                </p>
+              )}
               <label>
                 Library title
                 <input
@@ -800,6 +911,18 @@ export function Library({
                       is not available yet.
                     </p>
                   </details>
+                  {contentCompatibilityIssues(draft).length === 0 && (
+                    <PasteLyrics
+                      key={draft.id}
+                      content={draft}
+                      onStagingChange={setPasteStaging}
+                      onChange={update}
+                      onSelect={(sectionIndex) => {
+                        setSectionIndex(sectionIndex);
+                        setPageIndex(0);
+                      }}
+                    />
+                  )}
                   <label>
                     Section
                     <select
@@ -845,30 +968,6 @@ export function Library({
                       Add section
                     </button>
                     <button
-                      disabled={sectionIndex === 0}
-                      onClick={() => {
-                        update((c) => {
-                          c.sections = reorder(c.sections, sectionIndex, -1);
-                          syncAuto(c);
-                        });
-                        setSectionIndex(sectionIndex - 1);
-                      }}
-                    >
-                      Section ↑
-                    </button>
-                    <button
-                      disabled={sectionIndex >= draft.sections.length - 1}
-                      onClick={() => {
-                        update((c) => {
-                          c.sections = reorder(c.sections, sectionIndex, 1);
-                          syncAuto(c);
-                        });
-                        setSectionIndex(sectionIndex + 1);
-                      }}
-                    >
-                      Section ↓
-                    </button>
-                    <button
                       disabled={draft.sections.length < 2}
                       onClick={() => {
                         if (
@@ -893,6 +992,15 @@ export function Library({
                       Remove section
                     </button>
                   </div>
+                  <SectionTools
+                    content={draft}
+                    sectionIndex={sectionIndex}
+                    onChange={update}
+                    onSelect={(selection) => {
+                      setSectionIndex(selection.sectionIndex);
+                      setPageIndex(selection.pageIndex);
+                    }}
+                  />
                   <details>
                     <summary>Arrangements</summary>
                     {draft.arrangements.map((a, i) => (
@@ -1052,45 +1160,6 @@ export function Library({
                   Add slide
                 </button>
                 <button
-                  disabled={!page || pageIndex === 0}
-                  onClick={() => {
-                    update((c) => {
-                      if (c.kind === "song")
-                        c.sections[sectionIndex].pages = reorder(
-                          c.sections[sectionIndex].pages,
-                          pageIndex,
-                          -1,
-                        );
-                      else c.pages = reorder(c.pages, pageIndex, -1);
-                    });
-                    setPageIndex(pageIndex - 1);
-                  }}
-                >
-                  Slide ↑
-                </button>
-                <button
-                  disabled={
-                    (draft.kind === "song"
-                      ? draft.sections[sectionIndex]?.pages.length
-                      : draft.pages.length) <=
-                    pageIndex + 1
-                  }
-                  onClick={() => {
-                    update((c) => {
-                      if (c.kind === "song")
-                        c.sections[sectionIndex].pages = reorder(
-                          c.sections[sectionIndex].pages,
-                          pageIndex,
-                          1,
-                        );
-                      else c.pages = reorder(c.pages, pageIndex, 1);
-                    });
-                    setPageIndex(pageIndex + 1);
-                  }}
-                >
-                  Slide ↓
-                </button>
-                <button
                   disabled={
                     (draft.kind === "song"
                       ? draft.sections[sectionIndex]?.pages.length
@@ -1110,15 +1179,69 @@ export function Library({
                   Remove slide
                 </button>
               </div>
+              <SlideTools
+                content={draft}
+                sectionIndex={sectionIndex}
+                pageIndex={pageIndex}
+                onChange={update}
+                onSelect={(selection) => {
+                  setSectionIndex(selection.sectionIndex);
+                  setPageIndex(selection.pageIndex);
+                }}
+              />
               {page && (
                 <PageEditor page={page} change={changePage} media={media} />
+              )}
+              {contentCompatibilityIssues(draft).length > 0 && (
+                <div role="alert">
+                  <p>
+                    Legacy content needs review. The saved original and its
+                    hidden data are retained.
+                  </p>
+                  <ul>
+                    {contentCompatibilityIssues(draft).map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        if (
+                          !confirm(
+                            "Create an editable copy of the currently visible content? Hidden branches remain only in the saved original. Inconsistent automatic orders become Custom without changing their sequence. Existing services are unchanged. Export a backup first.",
+                          )
+                        )
+                          return;
+                        const original = await db.content.get(draft.id);
+                        if (!original)
+                          throw Error(
+                            "Save/export the original before creating a recovery copy.",
+                          );
+                        const copy = editableContentCopy(draft);
+                        await db.saveContent(copy);
+                        setDraft(copy);
+                        setSectionIndex(0);
+                        setPageIndex(0);
+                        setDirty(false);
+                        setMessage(
+                          "Editable copy created. The saved original, hidden content and existing services were retained.",
+                        );
+                      })
+                    }
+                  >
+                    Create editable copy
+                  </button>
+                </div>
               )}
               <div className="actions">
                 <button
                   className="primary"
-                  disabled={busy}
+                  disabled={busy || pasteStaging}
                   onClick={() =>
                     void run(async () => {
+                      const issues = contentCompatibilityIssues(draft);
+                      if (issues.length) throw Error(issues.join(" "));
                       syncAuto(draft);
                       const duplicate = content.find(
                         (c) =>
@@ -1135,8 +1258,20 @@ export function Library({
                         )
                       )
                         return;
-                      await db.saveContent(draft);
-                      setDirty(false);
+                      const generation = draftGeneration.current;
+                      const saved = await db.saveContent(draft);
+                      setDraft((current) =>
+                        current?.id === saved.id
+                          ? {
+                              ...current,
+                              revision: saved.revision,
+                              revisionToken: saved.revisionToken,
+                              updatedAt: saved.updatedAt,
+                            }
+                          : current,
+                      );
+                      if (generation === draftGeneration.current)
+                        setDirty(false);
                       setMessage(
                         "Library master saved. Existing service copies remain independent.",
                       );
@@ -1167,7 +1302,7 @@ export function Library({
                 </button>
               </div>
               {draft.kind === "song" && (
-                <label>
+                <label hidden={!showPlanner}>
                   Arrangement to add
                   <select
                     value={arrangement}
@@ -1183,6 +1318,7 @@ export function Library({
                 </label>
               )}
               <button
+                hidden={!showPlanner}
                 disabled={busy || dirty}
                 onClick={() =>
                   void run(async () => {
@@ -1206,7 +1342,7 @@ export function Library({
             </p>
           )}
         </section>
-        <section className="planner">
+        <section className="planner" hidden={!showPlanner}>
           <span className="eyebrow">SERVICE ORDER</span>
           <label>
             Saved service
@@ -1259,12 +1395,7 @@ export function Library({
                   onChange={(e) => {
                     setService({ ...service, title: e.target.value });
                   }}
-                  onBlur={() =>
-                    void run(async () => {
-                      await db.saveService(service);
-                      setMessage("Service changes saved locally.");
-                    })
-                  }
+                  onBlur={() => updateService(() => {})}
                 />
               </label>
               <label>
@@ -1285,6 +1416,8 @@ export function Library({
                     void run(async () => {
                       const copy = structuredClone(service);
                       copy.id = id();
+                      delete copy.revision;
+                      delete copy.revisionToken;
                       copy.title += " (copy)";
                       copy.items.forEach((i) => {
                         i.id = id();
@@ -1311,7 +1444,7 @@ export function Library({
                         db.services,
                         db.settings,
                         async () => {
-                          await db.services.delete(service.id);
+                          await db.deleteService(service);
                           const selected =
                             await db.settings.get("selectedService");
                           if (selected?.value === service.id)
@@ -1607,7 +1740,7 @@ export function Library({
                         backgroundDesign: servicePages(service).find(
                           (p) =>
                             p.itemId === item.id &&
-                            p.id === item.id + ":" + itemPages[servicePage].id,
+                            p.sourcePageId === itemPages[servicePage].id,
                         )?.backgroundDesign,
                       }}
                       change={(page) =>
