@@ -18,6 +18,9 @@ export type Phase =
   | "DISCONNECTED"
   | "STOPPED";
 export type Kind =
+  | "CANCEL_PENDING"
+  | "CANCELLED"
+  | "SETUP_CONTROLS"
   | "HELLO"
   | "READY"
   | "HEARTBEAT"
@@ -37,12 +40,17 @@ export interface Message {
   target?: string;
   slide?: number;
   frameId?: string;
+  visibleFrameId?: string;
+  cue?: boolean;
   blank?: boolean;
   fullscreen?: boolean;
   rendered?: boolean;
   error?: string;
 }
 const kinds: Kind[] = [
+  "CANCEL_PENDING",
+  "CANCELLED",
+  "SETUP_CONTROLS",
   "HELLO",
   "READY",
   "HEARTBEAT",
@@ -73,6 +81,11 @@ export function valid(x: unknown, session: string): x is Message {
       (typeof m.frameId === "string" && /^[a-f0-9-]{36}$/.test(m.frameId))) &&
     (m.slide === undefined ||
       (Number.isInteger(m.slide) && m.slide >= 0 && m.slide < slides.length)) &&
+    (!["CANCEL_PENDING", "CANCELLED"].includes(m.type) || !!m.frameId) &&
+    (m.visibleFrameId === undefined ||
+      (typeof m.visibleFrameId === "string" &&
+        /^[a-f0-9-]{36}$/.test(m.visibleFrameId))) &&
+    (m.cue === undefined || typeof m.cue === "boolean") &&
     (m.blank === undefined || typeof m.blank === "boolean") &&
     (m.fullscreen === undefined || typeof m.fullscreen === "boolean") &&
     (m.rendered === undefined || typeof m.rendered === "boolean") &&

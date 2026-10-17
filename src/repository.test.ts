@@ -219,7 +219,7 @@ it("scoped background and profile backups round-trip and protect inherited media
   await db.saveService(service);
   await expect(db.deleteMedia(asset.id)).rejects.toThrow("in use");
   const backup = await readBackup(await exportBackup(db));
-  expect(backup.manifest.version).toBe(4);
+  expect(backup.manifest.version).toBe(5);
   await restoreBackup(backup, target);
   expect(
     (await target.services.get(service.id))?.profile?.horizontalMargin,
@@ -247,7 +247,7 @@ it("legacy version-1 backup is accepted without changing existing style values",
   expect(prepared.data.content[0].pages[0].typographyMode).toBeUndefined();
 });
 
-it("adds provenance storage without rewriting version-1 library records", async () => {
+it("adds provenance and revision metadata without changing version-1 content", async () => {
   const Dexie = (await import("dexie")).default;
   const name = "upgrade-" + id();
   const legacy = new Dexie(name);
@@ -263,7 +263,11 @@ it("adds provenance storage without rewriting version-1 library records", async 
   legacy.close();
   const upgraded = new PresenterDatabase(name);
   databases.push(upgraded);
-  expect(await upgraded.content.get(original.id)).toEqual(original);
+  const migrated = (await upgraded.content.get(original.id))!;
+  const { revision, revisionToken, ...unchanged } = migrated;
+  expect(unchanged).toEqual(original);
+  expect(revision).toBe(1);
+  expect(revisionToken).toBeTruthy();
   expect(await upgraded.provenance.count()).toBe(0);
 });
 

@@ -169,6 +169,7 @@ export function SlideFrame({
   test = false,
   preview = true,
   active = true,
+  reportPrepared = false,
   onError,
   onReady,
   onWarning,
@@ -177,6 +178,7 @@ export function SlideFrame({
   test?: boolean;
   preview?: boolean;
   active?: boolean;
+  reportPrepared?: boolean;
   onError?: (error: string) => void;
   onReady?: () => void;
   onWarning?: (message: string) => void;
@@ -262,10 +264,11 @@ export function SlideFrame({
   const ready =
     test || (fit.page === page && bgReady && fgReady && !fit.overflow);
   useEffect(() => {
-    if (!ready || !active || foreground.value?.error) return;
+    if (!ready || (!active && !reportPrepared) || foreground.value?.error)
+      return;
     const tick = requestAnimationFrame(() => callbacks.current.onReady?.());
     return () => cancelAnimationFrame(tick);
-  }, [ready, page, active, foreground.value?.error]);
+  }, [ready, page, active, reportPrepared, foreground.value?.error]);
   useEffect(() => {
     if (fit.page === page && fit.overflow && !test)
       callbacks.current.onError?.(

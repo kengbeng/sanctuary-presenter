@@ -12,6 +12,7 @@ assert(
   target.pathname.endsWith("/"),
   "Include the repository's trailing slash",
 );
+const expectedVersion = process.argv[3];
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext();
@@ -33,10 +34,40 @@ try {
   });
   const page = await context.newPage();
   const response = await page.goto(target.href);
+  await page.waitForFunction(() =>
+    Array.from(document.querySelectorAll("h1,h2")).some((node) =>
+      ["Your services", "A time to gather"].includes(node.textContent),
+    ),
+  );
+  const modern = await page
+    .getByRole("heading", { name: "Your services", exact: true })
+    .isVisible();
+  async function enterPresenter() {
+    if (modern)
+      await page.getByRole("button", { name: "Present", exact: true }).click();
+    await expect(
+      page.getByRole("heading", {
+        name: modern ? "Demo service" : "A time to gather",
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
   assert.equal(response.status(), 200);
-  await expect(
-    page.getByRole("heading", { name: "A time to gather", exact: true }),
-  ).toBeVisible();
+  if (expectedVersion) {
+    const metadataResponse = await context.request.get(
+      new URL("release.json", target).href,
+    );
+    assert.equal(metadataResponse.status(), 200);
+    const release = await metadataResponse.json();
+    assert.equal(
+      release.version,
+      expectedVersion,
+      "Unexpected deployed version",
+    );
+    assert.equal(release.databaseSchema, 3);
+    assert.equal(release.backupFormat, 5);
+  }
+  await enterPresenter();
   const manifest = await context.request.get(
     new URL("manifest.webmanifest", target).href,
   );
@@ -50,30 +81,46 @@ try {
   await page.reload();
   await context.setOffline(true);
   await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "A time to gather", exact: true }),
-  ).toBeVisible();
+  await enterPresenter();
   const popup = page.waitForEvent("popup");
   await page
-    .getByRole("button", { name: "Start Presentation", exact: true })
+    .getByRole("button", {
+      name: modern ? "Open congregation window" : "Start Presentation",
+      exact: true,
+    })
     .click();
   const output = await popup;
-  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("OUTPUT BLACK", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
   await expect(output.locator(".blackout")).toBeVisible();
-  await expect(output.locator(".frame")).not.toBeVisible();
+  await expect(output.locator(".frame:visible")).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Show / Restore", exact: true })
+    .getByRole("button", {
+      name: modern ? "Take" : "Show / Restore",
+      exact: true,
+    })
     .click();
   await expect(
     output.getByRole("heading", { name: "Welcome", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Blank", exact: true }).click();
-  await expect(output.locator(".blackout")).toBeVisible();
-  await expect(output.locator(".frame")).not.toBeVisible();
   await page
-    .getByRole("button", { name: "Stop Presentation", exact: true })
+    .getByRole("button", {
+      name: modern ? "Blank screen" : "Blank",
+      exact: true,
+    })
     .click();
-  await expect(page.getByText("OUTPUT STOPPED", { exact: true })).toBeVisible();
+  await expect(output.locator(".blackout")).toBeVisible();
+  await expect(output.locator(".frame:visible")).toHaveCount(0);
+  await page
+    .getByRole("button", {
+      name: modern ? "End presentation" : "Stop Presentation",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByText("OUTPUT STOPPED", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
   assert.deepEqual(errors, []);
   assert.deepEqual(remoteRequests, [], "Unexpected third-party app requests");
   assert.deepEqual(writes, [], "Unexpected write requests");
@@ -81,9 +128,11 @@ try {
     JSON.stringify(
       {
         url: target.href,
+        expectedVersion,
         status: "passed",
         checks: [
-          "HTTPS/subpath app load",
+          "subpath app load",
+          ...(expectedVersion ? ["expected release metadata"] : []),
           "manifest scope",
           "cached app shell",
           "offline reload",

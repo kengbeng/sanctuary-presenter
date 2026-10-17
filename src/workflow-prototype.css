@@ -1,0 +1,458 @@
+.workflow {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #10161d;
+  color: #e8edf2;
+  font:
+    14px/1.45 system-ui,
+    sans-serif;
+}
+.workflow button {
+  min-height: 44px;
+  padding: 9px 13px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.workflow button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.workflow button:focus-visible,
+.workflow input:focus-visible,
+.workflow textarea:focus-visible,
+.workflow select:focus-visible {
+  outline: 3px solid #91ccff;
+  outline-offset: 3px;
+}
+.workflow button[aria-pressed="true"] {
+  background: #284b67;
+  border-color: #7bb4df;
+}
+.workflow h1,
+.workflow h2,
+.workflow h3,
+.workflow p {
+  margin: 0 0 12px;
+}
+.workflow h1 {
+  font-size: 23px;
+}
+.workflow h2 {
+  font-size: 18px;
+}
+.workflow h3 {
+  font-size: 15px;
+}
+.wf-prototype {
+  padding: 8px 20px;
+  background: #303023;
+  color: #e3dfb9;
+  font-size: 12px;
+}
+.wf-prototype a {
+  float: right;
+  color: inherit;
+}
+.wf-header {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid #34404b;
+}
+.wf-header strong {
+  font-size: 19px;
+}
+.wf-header strong span {
+  font-weight: 400;
+  color: #a8b7c5;
+}
+.wf-header nav {
+  display: flex;
+  gap: 6px;
+}
+.wf-state {
+  margin-left: auto;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+.wf-home {
+  overflow: auto;
+  max-width: 920px;
+  width: 100%;
+  margin: 50px auto;
+  padding: 0 30px;
+}
+.wf-home form,
+.wf-home article {
+  background: #1b252f;
+  border: 1px solid #3b4955;
+  border-radius: 10px;
+  max-width: 560px;
+  padding: 25px;
+  margin-top: 30px;
+}
+.workflow label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+}
+.workflow input,
+.workflow textarea,
+.workflow select {
+  font: inherit;
+  background: #111a23;
+  border: 1px solid #566677;
+  color: inherit;
+  border-radius: 5px;
+  padding: 10px;
+}
+.workflow textarea {
+  resize: vertical;
+  width: 100%;
+}
+.wf-home input {
+  width: 100%;
+  margin-bottom: 12px;
+}
+.wf-primary {
+  background: #b6d9ef !important;
+  color: #122638 !important;
+  border-color: #b6d9ef !important;
+  font-weight: 650;
+}
+.wf-blank {
+  background: #090c10 !important;
+  border: 2px solid #ccd6df !important;
+  color: white !important;
+  font-weight: 650;
+}
+.wf-service {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 22px;
+  border-bottom: 1px solid #34404b;
+  gap: 15px;
+}
+.wf-service h1 {
+  margin: 0;
+}
+.wf-service > div:last-child {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.wf-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: #9ab4c9;
+  display: block;
+  margin-bottom: 5px;
+}
+.wf-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 250px;
+  overflow: hidden;
+}
+.wf-order {
+  background: #141e28;
+  border-right: 1px solid #34404b;
+  padding: 16px;
+  overflow: auto;
+}
+.wf-panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.wf-panel-title h2 {
+  margin: 0;
+}
+.wf-order-item {
+  border-top: 1px solid #34404b;
+  padding: 15px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.wf-muted,
+.wf-order-item small {
+  color: #a4b2be;
+}
+.wf-prepare {
+  grid-column: 2/4;
+  overflow: auto;
+  padding: 32px;
+  max-width: 980px;
+}
+.wf-prepare .wf-preview {
+  margin-top: 25px;
+  max-width: 600px;
+}
+.wf-center {
+  padding: 20px;
+  min-width: 0;
+  overflow: auto;
+}
+.wf-center .wf-panel-title h2 {
+  margin: 0;
+}
+.wf-center .wf-panel-title > span {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.wf-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+.wf-navigation > strong {
+  font-size: 12px;
+  color: #b7c6d2;
+}
+.wf-navigation > div {
+  display: flex;
+  gap: 6px;
+  overflow: auto;
+  scrollbar-color: #526678 #17222d;
+  max-height: 100px;
+}
+.wf-navigation button {
+  flex-shrink: 0;
+}
+.wf-navigation small {
+  margin-left: 5px;
+  opacity: 0.7;
+}
+.wf-preview,
+.wf-output-frame {
+  position: relative;
+  aspect-ratio: 16/9;
+  background: #000;
+  border: 1px solid #41505d;
+  overflow: hidden;
+}
+.wf-preview .frame,
+.wf-output-frame .frame {
+  width: 100%;
+  height: 100%;
+}
+.wf-center > p {
+  font-size: 12px;
+  margin-top: 8px;
+  color: #b6c3ce;
+}
+.wf-output {
+  padding: 20px 15px;
+  border-left: 1px solid #34404b;
+  overflow: auto;
+}
+.wf-output-frame {
+  margin-bottom: 20px;
+}
+.wf-output h3 {
+  margin-top: 20px;
+}
+.wf-output p {
+  font-size: 13px;
+}
+.wf-warning {
+  color: #f0cf8b;
+  font-size: 12px;
+}
+.wf-controls {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+  padding: 14px 20px;
+  background: #1a2631;
+  border-top: 1px solid #526475;
+}
+.wf-controls > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.wf-notice {
+  min-height: 33px;
+  padding: 7px 20px;
+  background: #111a23;
+  font-size: 12px;
+  color: #b6c8d8;
+}
+.workflow dialog {
+  color: inherit;
+  background: #1a2631;
+  border: 1px solid #627386;
+  border-radius: 10px;
+  max-width: 760px;
+  width: calc(100% - 40px);
+  max-height: 90dvh;
+  overflow: auto;
+  padding: 24px;
+}
+.workflow dialog::backdrop {
+  background: #000a;
+}
+.workflow dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  position: sticky;
+  bottom: -24px;
+  padding: 15px 0;
+  background: #1a2631;
+}
+.wf-lyric-editor {
+  max-height: 42dvh;
+  overflow: auto;
+}
+.wf-lyric-editor fieldset {
+  border: 1px solid #465766;
+  margin: 15px 0;
+  padding: 10px;
+}
+.wf-wrap {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+@media (max-width: 1050px) {
+  .wf-body {
+    grid-template-columns: 190px minmax(0, 1fr) 200px;
+  }
+  .wf-header {
+    gap: 10px;
+  }
+  .wf-center {
+    padding: 14px;
+  }
+  .wf-controls {
+    flex-wrap: wrap;
+  }
+  .wf-controls > div {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 760px) {
+  .wf-prototype a {
+    float: none;
+    display: block;
+  }
+  .wf-header {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+  .wf-state {
+    margin-left: 0;
+  }
+  .wf-service {
+    padding: 10px 12px;
+    flex-wrap: wrap;
+  }
+  .wf-body {
+    display: flex;
+    overflow: auto;
+    flex-direction: column;
+  }
+  .wf-order {
+    max-height: 170px;
+    flex-shrink: 0;
+  }
+  .wf-center,
+  .wf-output,
+  .wf-prepare {
+    overflow: visible;
+    flex-shrink: 0;
+    padding: 14px;
+  }
+  .wf-output-frame {
+    max-width: 300px;
+  }
+  .wf-notice {
+    max-height: 58px;
+    overflow: auto;
+  }
+  .wf-controls {
+    padding: 8px;
+  }
+  .wf-controls button {
+    padding: 7px;
+  }
+  .wf-controls > div {
+    gap: 5px;
+  }
+  .wf-home {
+    margin: 25px auto;
+  }
+  .workflow dialog footer {
+    flex-wrap: wrap;
+  }
+}
+/* Keep the whole 16:9 canvas inside the remaining presenter space. */
+@media (min-width: 761px) {
+  .wf-center {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .wf-center > .wf-panel-title,
+  .wf-center > .wf-navigation,
+  .wf-center > p {
+    flex-shrink: 0;
+  }
+  .wf-center > .wf-preview {
+    container-type: size;
+    flex: 1;
+    min-height: 0;
+    aspect-ratio: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .wf-center > .wf-preview > .frame {
+    width: min(100%, calc(100cqh * 16 / 9));
+    height: auto;
+    flex-shrink: 0;
+    aspect-ratio: 16/9;
+  }
+  .wf-navigation {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    align-items: center;
+  }
+  .wf-navigation > div:last-child {
+    grid-column: 2;
+  }
+  .wf-navigation > div {
+    min-width: 0;
+  }
+  .wf-center > .wf-preview > .render-info {
+    display: none;
+  }
+}
+.workflow dialog {
+  scrollbar-gutter: stable;
+}
+.workflow dialog > .wf-panel-title {
+  position: sticky;
+  top: -24px;
+  padding: 12px 0;
+  background: #1a2631;
+  z-index: 2;
+}
+.wf-output-frame > .render-info,
+.wf-prepare .wf-preview > .render-info {
+  display: none;
+}

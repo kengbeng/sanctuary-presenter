@@ -1,6 +1,8 @@
+import packageInfo from "./package.json" with { type: "json" };
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+const releaseVersion = packageInfo.version;
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
   const base = env.VITE_BASE_PATH || "/sanctuary-presenter/";
@@ -8,7 +10,23 @@ export default defineConfig(({ mode }) => {
     throw Error("VITE_BASE_PATH must begin and end with /");
   return {
     base,
+    define: { __APP_VERSION__: JSON.stringify(releaseVersion) },
     plugins: [
+      {
+        name: "release-metadata",
+        generateBundle() {
+          this.emitFile({
+            type: "asset",
+            fileName: "release.json",
+            source: JSON.stringify({
+              version: releaseVersion,
+              databaseSchema: 3,
+              backupFormat: 5,
+              channel: "rehearsal",
+            }),
+          });
+        },
+      },
       react(),
       VitePWA({
         registerType: "prompt",
@@ -17,7 +35,7 @@ export default defineConfig(({ mode }) => {
           name: "Sanctuary Presenter",
           short_name: "Sanctuary",
           id: base,
-          start_url: base + "#/app",
+          start_url: base,
           scope: base,
           display: "standalone",
           theme_color: "#111820",
@@ -44,7 +62,7 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          globPatterns: ["**/*.{js,css,html,png,webmanifest}"],
+          globPatterns: ["**/*.{js,css,html,png,json,webmanifest}"],
           navigateFallback: "index.html",
           cleanupOutdatedCaches: true,
         },

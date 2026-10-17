@@ -18,6 +18,7 @@ async function seed(
     mimeType: string;
     bytes: number[];
   }[] = [],
+  modern = false,
 ) {
   await page.evaluate(
     async ({ order, assets }) => {
@@ -55,9 +56,18 @@ async function seed(
     { order, assets },
   );
   await page.reload();
-  await expect(
-    page.getByRole("heading", { name: order.title, exact: true }),
-  ).toBeVisible();
+  if (modern) {
+    await page
+      .getByRole("button", { name: `Open ${order.title}`, exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Present service", exact: true })
+      .click();
+  } else {
+    await expect(
+      page.getByRole("heading", { name: order.title, exact: true }),
+    ).toBeVisible();
+  }
 }
 function order(title: string, text: string): ServiceOrder {
   const c = newContent("slides");
@@ -77,20 +87,25 @@ function order(title: string, text: string): ServiceOrder {
     profile: { ...outputProfiles[0] },
   };
 }
-async function start(page: BrowserPage) {
+async function start(page: BrowserPage, modern = false) {
   const promise = page.waitForEvent("popup");
   await page
-    .getByRole("button", { name: "Start Presentation", exact: true })
+    .getByRole("button", {
+      name: modern ? "Open congregation window" : "Start Presentation",
+      exact: true,
+    })
     .click();
   const output = await promise;
-  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("OUTPUT BLACK", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
   await expect(output.locator(".blackout")).toBeVisible();
   return output;
 }
 test("Auto Fit is identical in preview/output and stable across projector sizes", async ({
   page,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   const service = order(
     "Layout rehearsal",
     Array.from({ length: 18 }, (_, i) => `Line ${i + 1} · Readable text`).join(
@@ -134,7 +149,7 @@ test("Auto Fit is identical in preview/output and stable across projector sizes"
 test("unfittable text stays black with an actionable operator error", async ({
   page,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   const service = order(
     "Overflow rehearsal",
     Array(100).fill("Line").join("\n"),
@@ -156,7 +171,7 @@ test("unfittable text stays black with an actionable operator error", async ({
 test("background video retains its source, pauses under black and resumes on Restore", async ({
   page,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   const bytes = await page.evaluate(async () => {
     const canvas = document.createElement("canvas");
     canvas.width = 160;
@@ -261,7 +276,7 @@ test("background video retains its source, pauses under black and resumes on Res
 test("failed background uses its configured colour and does not leak operator notes", async ({
   page,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   const service = order("Fallback rehearsal", "Visible fallback text");
   service.items[0].notes = "PRIVATE";
   const assetId = id();
@@ -297,7 +312,7 @@ test("failed background uses its configured colour and does not leak operator no
 test("profile controls are inspectable and custom values persist without changing factory presets", async ({
   page,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   await seed(page, order("Profile rehearsal", "Short text"));
   await page
     .getByRole("button", { name: "Library & planner", exact: true })
@@ -336,79 +351,102 @@ test("profile controls are inspectable and custom values persist without changin
   ).toHaveValue("4.5");
 });
 
-test("Blank cancels an in-flight image preparation and cannot reveal it later", async ({
-  page,
-}) => {
-  const delayImages = () => {
-    const original = Object.getOwnPropertyDescriptor(
-      HTMLImageElement.prototype,
-      "src",
-    )!;
-    const pending: Array<() => Promise<void>> = [];
-    (
-      window as unknown as { releaseImages: () => Promise<void> }
-    ).releaseImages = async () => {
-      await Promise.all(pending.splice(0).map((release) => release()));
+for (const modern of [false, true]) {
+  test(`Blank cancels an in-flight image preparation and cannot reveal it later (${modern ? "new presenter" : "legacy"})`, async ({
+    page,
+  }) => {
+    const delayImages = () => {
+      const original = Object.getOwnPropertyDescriptor(
+        HTMLImageElement.prototype,
+        "src",
+      )!;
+      const pending: Array<() => Promise<void>> = [];
+      (
+        window as unknown as { releaseImages: () => Promise<void> }
+      ).releaseImages = async () => {
+        await Promise.all(pending.splice(0).map((release) => release()));
+      };
+      Object.defineProperty(HTMLImageElement.prototype, "src", {
+        ...original,
+        set(value: string) {
+          if (value.startsWith("blob:")) {
+            pending.push(
+              () =>
+                new Promise<void>((resolve) => {
+                  this.addEventListener("load", () => resolve(), {
+                    once: true,
+                  });
+                  this.addEventListener("error", () => resolve(), {
+                    once: true,
+                  });
+                  original.set!.call(this, value);
+                }),
+            );
+          } else original.set!.call(this, value);
+        },
+      });
     };
-    Object.defineProperty(HTMLImageElement.prototype, "src", {
-      ...original,
-      set(value: string) {
-        if (value.startsWith("blob:")) {
-          pending.push(
-            () =>
-              new Promise<void>((resolve) => {
-                this.addEventListener("load", () => resolve(), { once: true });
-                this.addEventListener("error", () => resolve(), { once: true });
-                original.set!.call(this, value);
-              }),
-          );
-        } else original.set!.call(this, value);
-      },
-    });
-  };
-  await page.goto("./");
-  const { readFileSync } = await import("node:fs");
-  const service = order("Loading rehearsal", "Do not reveal automatically");
-  const mediaId = id();
-  service.items[0].snapshot.pages[0].mediaId = mediaId;
-  await seed(page, service, [
-    {
-      id: mediaId,
-      title: "Synthetic image",
-      kind: "image",
-      mimeType: "image/png",
-      bytes: Array.from(readFileSync("public/icon-192.png")),
-    },
-  ]);
-  const output = await start(page);
-  await output.evaluate(delayImages);
-  await page.getByRole("button", { name: "Show / Restore" }).click();
-  await expect(
-    page
-      .getByRole("region", { name: "Presentation controls", exact: true })
-      .getByText("Preparing slide", { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText("PREPARING", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Blank", exact: true }).click();
-  await output.evaluate(async () => {
-    await (
-      window as unknown as { releaseImages: () => Promise<void> }
-    ).releaseImages();
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    await page.goto(modern ? "./" : "./#/app");
+    const { readFileSync } = await import("node:fs");
+    const service = order("Loading rehearsal", "Do not reveal automatically");
+    const mediaId = id();
+    service.items[0].snapshot.pages[0].mediaId = mediaId;
+    await seed(
+      page,
+      service,
+      [
+        {
+          id: mediaId,
+          title: "Synthetic image",
+          kind: "image",
+          mimeType: "image/png",
+          bytes: Array.from(readFileSync("public/icon-192.png")),
+        },
+      ],
+      modern,
     );
+    const output = await start(page, modern);
+    await output.evaluate(delayImages);
+    await page
+      .getByRole("button", {
+        name: modern ? "Take" : "Show / Restore",
+        exact: true,
+      })
+      .click();
+
+    await expect(
+      page.getByText("PREPARING", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", {
+        name: modern ? "Blank screen" : "Blank",
+        exact: true,
+      })
+      .click();
+    await output.evaluate(async () => {
+      await (
+        window as unknown as { releaseImages: () => Promise<void> }
+      ).releaseImages();
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    });
+    await expect(output.locator(".blackout")).toBeVisible();
+    await expect(
+      output.getByText("Do not reveal automatically", { exact: true }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByText("LIVE", { exact: true }).filter({ visible: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText("OUTPUT BLACK", { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
   });
-  await expect(output.locator(".blackout")).toBeVisible();
-  await expect(
-    output.getByText("Do not reveal automatically", { exact: true }),
-  ).not.toBeVisible();
-  await expect(page.getByText("LIVE", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("OUTPUT BLACK", { exact: true })).toBeVisible();
-});
+}
 test("broken video uses its prepared local poster fallback", async ({
   page,
 }) => {
-  await page.goto("./");
+  await page.goto("./#/app");
   const { readFileSync } = await import("node:fs");
   const service = order("Poster rehearsal", "Poster fallback text");
   const videoId = id(),

@@ -96,7 +96,11 @@ export interface Arrangement {
   auto: boolean;
   isDefault: boolean;
 }
-export interface Content {
+export interface Revisioned {
+  revision?: number;
+  revisionToken?: string;
+}
+export interface Content extends Revisioned {
   id: string;
   kind: "song" | "slides";
   title: string;
@@ -130,7 +134,7 @@ export interface ServiceItem {
   typographyMode?: "inherit" | "custom";
   backgroundDesign?: BackgroundDesign;
 }
-export interface ServiceOrder {
+export interface ServiceOrder extends Revisioned {
   id: string;
   title: string;
   date: string;
@@ -218,22 +222,49 @@ export function contentPages(c: Content, order?: string[]): Page[] {
     (sectionId) => c.sections.find((s) => s.id === sectionId)?.pages ?? [],
   );
 }
-export function servicePages(
-  order: ServiceOrder,
-): Array<Page & { itemId: string; itemTitle: string; notes: string }> {
+/** Runtime destination identity is separate from the persisted source page identity. */
+export interface PresentationPage extends Page {
+  sourcePageId: string;
+  itemId: string;
+  itemTitle: string;
+  notes: string;
+  sectionId?: string;
+  sectionLabel?: string;
+  occurrenceIndex: number;
+  pageIndex: number;
+}
+export function servicePages(order: ServiceOrder): PresentationPage[] {
   return order.items
     .filter((item) => !item.nonPresenting)
-    .flatMap((item) =>
-      contentPages(item.snapshot, item.sectionOrder).map((page) => ({
-        ...page,
-        id: item.id + ":" + page.id,
-        style: resolveStyle(order, item, page),
-        backgroundDesign: resolveBackground(order, item, page),
-        itemId: item.id,
-        itemTitle: item.title,
-        notes: item.notes,
-      })),
-    );
+    .flatMap((item) => {
+      const occurrences =
+        item.snapshot.kind === "song"
+          ? item.sectionOrder.map((sectionId) =>
+              item.snapshot.sections.find((s) => s.id === sectionId),
+            )
+          : [undefined];
+      return occurrences.flatMap((section, occurrenceIndex) => {
+        const pages =
+          item.snapshot.kind === "song"
+            ? (section?.pages ?? [])
+            : item.snapshot.pages;
+        return pages.map((page, pageIndex) => ({
+          ...page,
+          // JSON tuple encoding avoids collisions even for imported IDs containing separators.
+          id: JSON.stringify([item.id, occurrenceIndex, page.id]),
+          sourcePageId: page.id,
+          sectionId: section?.id,
+          sectionLabel: section?.label,
+          occurrenceIndex,
+          pageIndex,
+          style: resolveStyle(order, item, page),
+          backgroundDesign: resolveBackground(order, item, page),
+          itemId: item.id,
+          itemTitle: item.title,
+          notes: item.notes,
+        }));
+      });
+    });
 }
 export function makeItem(c: Content, arrangementId?: string): ServiceItem {
   const snapshot = structuredClone(c);
@@ -398,7 +429,79 @@ export function validateStyle(s: TextStyle) {
     )
       throw Error("Invalid local font family.");
 }
-export function validateContent(c: Content) {
+export interface ValidationOptions {
+  /** Read existing archives without silently dropping previously accepted data. */
+  legacy?: boolean;
+}
+export function contentCompatibilityIssues(c: Content): string[] {
+  const issues: string[] = [];
+  if (c.kind === "song" && c.pages.length)
+    issues.push(
+      "Song has hidden top-level slides. Export a backup and create an editable copy; the original must be retained.",
+    );
+  if (c.kind === "slides" && (c.sections.length || c.arrangements.length))
+    issues.push(
+      "Slide set has hidden song sections/arrangements. Export a backup and create an editable copy; the original must be retained.",
+    );
+  for (const a of c.arrangements)
+    if (
+      a.auto &&
+      (a.sectionIds.length !== c.sections.length ||
+        a.sectionIds.some((value, i) => value !== c.sections[i]?.id))
+    )
+      issues.push(
+        `Automatic arrangement “${a.name}” differs from section order. An editable copy will retain its order as Custom.`,
+      );
+  return issues;
+}
+/** Explicit recovery creates a new record; never mutate or delete the legacy original. */
+export function editableContentCopy(original: Content): Content {
+  validateContent(original, { legacy: true });
+  const c = structuredClone(original);
+  c.id = id();
+  delete c.revision;
+  delete c.revisionToken;
+  c.title += " (editable copy)";
+  c.createdAt = c.updatedAt = now();
+  if (c.kind === "song") c.pages = [];
+  else {
+    c.sections = [];
+    c.arrangements = [];
+  }
+  const sectionIds = new Map<string, string>();
+  for (const section of c.sections) {
+    const next = id();
+    sectionIds.set(section.id, next);
+    section.id = next;
+    for (const page of section.pages) page.id = id();
+  }
+  for (const a of c.arrangements) {
+    if (
+      a.auto &&
+      (a.sectionIds.length !== sectionIds.size ||
+        a.sectionIds.some((value, i) => value !== original.sections[i]?.id))
+    )
+      a.auto = false;
+    a.id = id();
+    a.sectionIds = a.sectionIds.map((value) => sectionIds.get(value)!);
+  }
+  for (const page of c.pages) page.id = id();
+  validateContent(c);
+  return c;
+}
+export function validateRevision(record: Revisioned) {
+  if (
+    (record.revision === undefined) !== (record.revisionToken === undefined) ||
+    (record.revision !== undefined &&
+      (!Number.isSafeInteger(record.revision) || record.revision < 1)) ||
+    (record.revisionToken !== undefined &&
+      (typeof record.revisionToken !== "string" ||
+        !record.revisionToken ||
+        record.revisionToken.length > 200))
+  )
+    throw Error("Invalid record revision.");
+}
+export function validateContent(c: Content, options: ValidationOptions = {}) {
   if (
     !c ||
     !["song", "slides"].includes(c.kind) ||
@@ -409,6 +512,7 @@ export function validateContent(c: Content) {
     c.title.length > 500
   )
     throw Error("A title is required (up to 500 characters).");
+  validateRevision(c);
   for (const key of [
     "indexNumber",
     "primaryLanguage",
@@ -498,8 +602,15 @@ export function validateContent(c: Content) {
     )
       throw Error("Arrangement contains an invalid section reference.");
   }
+  if (!options.legacy) {
+    const issues = contentCompatibilityIssues(c);
+    if (issues.length) throw Error(issues.join(" "));
+  }
 }
-export function validateService(s: ServiceOrder) {
+export function validateService(
+  s: ServiceOrder,
+  options: ValidationOptions = {},
+) {
   if (
     !s ||
     typeof s.id !== "string" ||
@@ -512,6 +623,7 @@ export function validateService(s: ServiceOrder) {
     !Array.isArray(s.items)
   )
     throw Error("Invalid service order.");
+  validateRevision(s);
   validateProfile(s.profile);
   validateStyle({ ...defaultStyle, ...s.style });
   validateBackground(s.backgroundDesign);
@@ -532,7 +644,7 @@ export function validateService(s: ServiceOrder) {
     )
       throw Error("Invalid service section flag.");
     ids.add(item.id);
-    validateContent(item.snapshot);
+    validateContent(item.snapshot, options);
     if (
       item.typographyMode !== undefined &&
       !["inherit", "custom"].includes(item.typographyMode)
@@ -622,4 +734,20 @@ export function displayChannels(page: Page) {
     primary: page.text,
     secondary: page.languageMode === "primary" ? "" : page.secondary,
   };
+}
+
+/** Storage can retain an unfinished page; revelation requires intentional content. */
+export function pageReadinessIssue(page: Page): string | undefined {
+  const channels = displayChannels(page);
+  const hasMedia =
+    !!page.mediaId ||
+    ["image", "video"].includes(page.backgroundDesign?.mode ?? "");
+  if (
+    !page.title.trim() &&
+    !channels.primary.trim() &&
+    !channels.secondary.trim() &&
+    !hasMedia
+  )
+    return "This slide is empty. Add words or media, or select another slide. Use Blank to hide output.";
+  return undefined;
 }
