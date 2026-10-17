@@ -1,4 +1,4 @@
-# Sanctuary Presenter v2 — 0.7.0-rc.1
+# Sanctuary Presenter v2 — 0.7.0-rc.2
 
 A local-first church presentation application for GitHub Pages. Services → Prepare → Review → Present provides independent service copies, bilingual songs, repeated sections, local media and a separate congregation window. This release candidate is for rehearsal. Automated checks do not replace the outstanding Safari/second-display, room-readability and participant checks listed in [release acceptance](docs/RELEASE_ACCEPTANCE.md).
 
@@ -57,7 +57,7 @@ The default base is `/<repository>/`. Set repository Actions variable `VITE_BASE
 After deployment, verify the expected release:
 
 ```sh
-node scripts/smoke-deployed.mjs https://kengbeng.github.io/sanctuary-presenter/ 0.7.0-rc.1
+node scripts/smoke-deployed.mjs https://kengbeng.github.io/sanctuary-presenter/ 0.7.0-rc.2
 ```
 
 This checks deployed version metadata, subpath loading, manifest, offline reload, black-first dual-window Take/Blank/End and absence of third-party app requests or write requests. It does not certify physical placement or cold-start behavior on every browser.
@@ -74,3 +74,7 @@ python3 tools/convert_v1.py --database closed-backup.sqlite --media-root /path/t
 See [conversion scope](docs/V1_CONVERSION.md) for exact formats, media mapping and retained provenance. Export the destination's backup, stop all output, then use Library → Restore backup to replace local data with the converted archive. Conversion is not a merge; EasiSlides and unsupported history/settings activation remain outside scope. Rehearse actual user media and text after conversion.
 
 See [implementation plan](docs/NEXT_UPDATES_PLAN.md), [UI specification](docs/USER_INTERFACE_SPECIFICATION.md), [database review](docs/SONG_LIBRARY_DATABASE_REVIEW.md), [release acceptance](docs/RELEASE_ACCEPTANCE.md), [manual history](docs/MANUAL_TESTS.md) and [verification](docs/VERIFICATION.md).
+
+## Display recovery follow-up
+
+This candidate defaults browsers without automatic display selection to manual, windowed output. Hidden-page reporting blocks Take; pending Takes have a 15-second confirmation timeout that requests black without claiming physical confirmation. The Acer manual rehearsal covered black startup, preview/Take separation, hidden-output blocking and restoration. Timeout expiry remains unverified manually. See [display follow-up](docs/UPDATE_SAFARI_DISPLAY_SETUP.md) and [manual results](docs/MANUAL_TESTS.md). Safari/Sidecar fullscreen and physical placement are not certified.
