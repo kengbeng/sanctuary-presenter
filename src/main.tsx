@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import { PresentationLease, applySafeUpdate } from "./coordination";
 import { registerSW } from "virtual:pwa-register";
 import {
@@ -103,6 +104,7 @@ function Output() {
       seq: ++seq.current,
       type,
       ...(cue ? { cue: true, frameId: frameIdentity.current } : {}),
+      visible: document.visibilityState === "visible",
       ...extra,
     });
   useEffect(() => {
@@ -310,12 +312,18 @@ function Output() {
       }
     }, 1000);
     document.addEventListener("fullscreenchange", status);
+    const visibility = () =>
+      send("OUTPUT_VISIBILITY", {
+        visible: document.visibilityState === "visible",
+      });
+    document.addEventListener("visibilitychange", visibility);
     return () => {
       clearInterval(timer);
       outputLease.current.release();
       window.removeEventListener("pagehide", release);
       channel.removeEventListener("message", receive);
       document.removeEventListener("fullscreenchange", status);
+      document.removeEventListener("visibilitychange", visibility);
     };
   }, []);
   useEffect(() => {
@@ -510,6 +518,12 @@ function Operator() {
   );
   const takeWarnings = useRef(new Map<string, string[]>());
   const pendingTake = useRef<string | undefined>(undefined);
+  const takeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const takeTimedOut = useRef(false);
+  function clearTakeTimer() {
+    if (takeTimer.current !== undefined) clearTimeout(takeTimer.current);
+    takeTimer.current = undefined;
+  }
   const cancelWaiter = useRef<
     { id: string; done: (message: Message) => void } | undefined
   >(undefined);
@@ -519,6 +533,8 @@ function Operator() {
   const [stagedId, setStagedId] = useState<string>();
   const [pinsReady, setPinsReady] = useState(true);
   const [cueReady, setCueReady] = useState(false);
+  const [outputVisible, setOutputVisible] = useState<boolean | undefined>();
+  const outputVisibleRef = useRef<boolean | undefined>(undefined);
   const [blankPending, setBlankPending] = useState(false);
   const blankIntent = useRef(false);
   const [view, setView] = useState<
@@ -605,10 +621,15 @@ function Operator() {
       });
     return () => controller.abort();
   }, [modern, view, previewKey, test]);
-  const [mode, setMode] = useState("automatic");
+  const automaticDisplayAvailable =
+    typeof (window as Window & { getScreenDetails?: unknown }).getScreenDetails ===
+    "function";
+  const [mode, setMode] = useState(
+    automaticDisplayAvailable ? "automatic" : "manual",
+  );
   const [screens, setScreens] = useState<Display[]>([]);
   const [target, setTarget] = useState("");
-  const [requestFull, setRequestFull] = useState(true);
+  const [requestFull, setRequestFull] = useState(automaticDisplayAvailable);
   const [full, setFull] = useState(false);
   const [placement, setPlacement] = useState("Unknown — verify on projector");
   const [notice, setNotice] = useState(
@@ -677,6 +698,10 @@ function Operator() {
       const m = e.data;
       if (m.type === "HELLO") {
         if (retired.current.has(m.instance)) return;
+        clearTakeTimer();
+        takeTimedOut.current = false;
+        outputVisibleRef.current = undefined;
+        setOutputVisible(undefined);
         if (modern) resetNavigation.current();
         desiredVisible.current = false;
         pendingTake.current = undefined;
@@ -695,6 +720,26 @@ function Operator() {
       if (m.instance !== active.current || !fresh(m.seq, last.current)) return;
       last.current = m.seq;
       beat.current = Date.now();
+      if (typeof m.visible === "boolean") {
+        const visibilityChanged = outputVisibleRef.current !== m.visible;
+        outputVisibleRef.current = m.visible;
+        if (visibilityChanged)
+          // Commit this external-window signal before the next operator action.
+          // Safari can defer rendering while windows are minimised or restored.
+          flushSync(() => {
+            setOutputVisible(m.visible);
+            if (m.visible)
+              setNotice(
+                "Output page visible again. Verify the physical display; Take is still a separate action.",
+              );
+          });
+        if (!m.visible && takeTimer.current !== undefined) {
+          blankOutput();
+          setNotice(
+            "Take cancelled because the browser reports the output page is hidden. Black was requested; verify the physical display before retrying.",
+          );
+        }
+      }
       const waiter = cancelWaiter.current;
       if (m.type === "CANCELLED" && waiter && waiter.id === m.frameId)
         waiter.done(m);
@@ -702,7 +747,9 @@ function Operator() {
         setCueReady(!!m.cue);
         setFull(!!m.fullscreen);
         change("READY");
-        setNotice("Output acknowledged. Verify display placement before Show.");
+        setNotice(
+          "Output window connected. Check the physical display before Take; connection does not confirm visibility.",
+        );
       }
       if (m.type === "OUTPUT_STATUS") {
         setFull(!!m.fullscreen);
@@ -710,7 +757,9 @@ function Operator() {
           if (m.blank && (!modern || !desiredVisible.current)) {
             if (modern && blankIntent.current)
               setNotice(
-                "Congregation output confirmed black. Preview a slide and Take when ready.",
+                takeTimedOut.current
+                  ? "Take timed out; the output window has now confirmed black. Verify that it is visible on the second display, then retry Take."
+                  : "Congregation output confirmed black. Preview a slide and Take when ready.",
               );
             blankIntent.current = false;
             setBlankPending(false);
@@ -721,6 +770,7 @@ function Operator() {
             desiredVisible.current &&
             (!modern || m.frameId === pendingTake.current)
           ) {
+            clearTakeTimer();
             change("SHOW");
             setMediaState("Ready");
             if (modern && m.frameId) {
@@ -748,6 +798,7 @@ function Operator() {
       }
       if (m.type === "ERROR") {
         if (m.blank) {
+          clearTakeTimer();
           desiredVisible.current = false;
           pendingTake.current = undefined;
           setLiveFrame(undefined);
@@ -800,6 +851,7 @@ function Operator() {
     window.addEventListener("sanctuary-display-change", topology);
     window.addEventListener("resize", moved);
     return () => {
+      clearTakeTimer();
       operatorLease.current.release();
       channel?.removeEventListener("message", receive);
       clearInterval(timer);
@@ -826,6 +878,10 @@ function Operator() {
     }
   }
   function stop() {
+    clearTakeTimer();
+    takeTimedOut.current = false;
+    outputVisibleRef.current = undefined;
+    setOutputVisible(undefined);
     blankIntent.current = false;
     resetNavigation.current();
     setBlankPending(false);
@@ -858,6 +914,10 @@ function Operator() {
   function start(isTest: boolean) {
     blankIntent.current = false;
     if (live.current && phaseRef.current !== "DISCONNECTED") return;
+    clearTakeTimer();
+    takeTimedOut.current = false;
+    outputVisibleRef.current = undefined;
+    setOutputVisible(undefined);
     applyGeneration.current++;
     setApplying(false);
     setBlankPending(false);
@@ -965,6 +1025,8 @@ function Operator() {
     }
   }
   async function transmit(index: number) {
+    clearTakeTimer();
+    takeTimedOut.current = false;
     const token = ++showGeneration.current;
     const currentSession = session.current;
     const page = modern
@@ -989,6 +1051,23 @@ function Operator() {
     }
     setSending(true);
     setMediaState("Preparing slide");
+    if (modern)
+      takeTimer.current = setTimeout(() => {
+        takeTimer.current = undefined;
+        if (
+          token !== showGeneration.current ||
+          currentSession !== session.current
+        )
+          return;
+        // Invalidate pending preparation and send a newer black intent. A late
+        // frame acknowledgement cannot turn this cancelled Take into LIVE.
+        blankOutput();
+        takeTimedOut.current = true;
+        setMediaState("Take timed out");
+        setNotice(
+          "Take timed out. Black was requested but is not yet confirmed. Check the second display and bring the output window into view. If it is unresponsive, end the presentation and reconnect; retry Take only after verifying placement.",
+        );
+      }, 15000);
     try {
       const frameId = await db.prepareFrame(page, currentSession);
       if (
@@ -1011,13 +1090,25 @@ function Operator() {
       });
       send("SHOW_SLIDE", { frameId });
     } catch (error) {
-      if (token === showGeneration.current)
+      if (token === showGeneration.current) {
+        clearTakeTimer();
+        setMediaState("Slide preparation failed");
         setNotice("Could not prepare slide: " + String(error));
+      }
     } finally {
       if (token === showGeneration.current) setSending(false);
     }
   }
   function show() {
+    if (modern && outputVisibleRef.current === false) {
+      flushSync(() => {
+        setOutputVisible(false);
+        setNotice(
+          "The browser reports the output page is hidden. Bring it into view on the second display and verify placement before Take.",
+        );
+      });
+      return;
+    }
     if (
       modern &&
       (applying ||
@@ -1038,6 +1129,8 @@ function Operator() {
     }
   }
   function blankOutput() {
+    clearTakeTimer();
+    takeTimedOut.current = false;
     blankIntent.current =
       modern && live.current && phaseRef.current !== "DISCONNECTED";
     setBlankPending(blankIntent.current);
@@ -1115,6 +1208,7 @@ function Operator() {
             "Reconnect the output with this app version before applying changes.",
           );
         showGeneration.current++;
+        clearTakeTimer();
         setSending(false);
         const cancelled = await new Promise<Message>((resolve, reject) => {
           const requestId = crypto.randomUUID();
@@ -1300,6 +1394,11 @@ function Operator() {
   const outputLabel =
     blankPending && phase !== "DISCONNECTED"
       ? "BLANKING"
+      : modern &&
+          sessionActive &&
+          phase !== "DISCONNECTED" &&
+          outputVisible === false
+        ? "OUTPUT HIDDEN"
       : isPreparing
         ? "PREPARING"
         : phase === "LIVE"
@@ -1327,14 +1426,27 @@ function Operator() {
           Every session starts black. Place the output on your projector before
           showing a slide.
         </p>
+        {!automaticDisplayAvailable && (
+          <p className="muted">
+            This browser cannot select a display automatically. Open the black
+            congregation window, then move it to the second display. On macOS,
+            use the output window’s Window menu → Move to your display. Keep it
+            windowed until you can see it there and still use the operator.
+          </p>
+        )}
         <label>
           Display positioning
           <select value={mode} onChange={(e) => setMode(e.target.value)}>
-            <option value="automatic">Automatic</option>
+            <option value="automatic" disabled={!automaticDisplayAvailable}>
+              Automatic{automaticDisplayAvailable ? "" : " · unavailable in this browser"}
+            </option>
             <option value="manual">Manual</option>
           </select>
         </label>
-        <button onClick={configure} disabled={sessionActive}>
+        <button
+          onClick={configure}
+          disabled={sessionActive || !automaticDisplayAvailable}
+        >
           Configure Display
         </button>
         <label>
@@ -1359,7 +1471,10 @@ function Operator() {
         </label>
         <p className="muted">
           Your browser may require clicking Enter Fullscreen inside the output
-          window.
+          window. If Safari shows a white or grey “Click to Exit Full Screen”
+          placeholder, exit fullscreen and use windowed output. Browser/window
+          fullscreen is optional; recheck the second display after switching
+          back to the operator.
         </p>
       </details>
       {sessionActive && phase !== "DISCONNECTED" && (
@@ -1378,7 +1493,7 @@ function Operator() {
             onClick={() => {
               popup.current?.focus();
               setNotice(
-                "Move output to the intended screen, use Enter Fullscreen there, then visually confirm placement.",
+                "Move output to the intended screen and verify it stays visible when you return to the operator. Keep it windowed if fullscreen changes the visible desktop.",
               );
             }}
           >
@@ -1402,13 +1517,18 @@ function Operator() {
         <dl>
           <dt>Placement</dt>
           <dd>{placement}</dd>
-          <dt>Fullscreen</dt>
+          <dt>Webpage fullscreen</dt>
           <dd>{full ? "Active" : "Inactive"}</dd>
           <dt>Media</dt>
           <dd>{mediaState}</dd>
         </dl>
       </details>
-      <p className="muted">Preview is not proof of projector placement.</p>
+      <p className="muted">
+        Preview and connection status cannot confirm which desktop or app the
+        physical display is showing. If it shows the desktop or another app,
+        Blank, reposition the output, and verify it before Take. Native window
+        fullscreen is not reported by the webpage fullscreen indicator.
+      </p>
     </section>
   );
   return (
@@ -1504,6 +1624,7 @@ function Operator() {
           state={outputLabel}
           ready={
             pinsReady &&
+            outputVisible !== false &&
             cueReady &&
             preparedPreview?.key === previewKey &&
             !previewError &&
@@ -1518,6 +1639,9 @@ function Operator() {
           previewError={previewError}
           onPreviewError={setPreviewError}
           sessionActive={sessionActive}
+          outputHidden={
+            sessionActive && phase !== "DISCONNECTED" && outputVisible === false
+          }
           test={test}
           notice={notice}
           applying={applying || workspaceSaving}

@@ -17,6 +17,7 @@ export function ModernPresenter(props: {
   previewError: string;
   onPreviewError: (message: string) => void;
   sessionActive: boolean;
+  outputHidden: boolean;
   test: boolean;
   notice: string;
   applying: boolean;
@@ -274,7 +275,9 @@ export function ModernPresenter(props: {
           </div>
           <p className="mp-preview-caption">
             {props.previewError ||
-              (!props.ready
+              (props.outputHidden
+                ? "Preview stays local. Bring the output window into view before Take."
+                : !props.ready
                 ? "Preparing selected preview or waiting for output…"
                 : "Preview ready. Take is a separate action.")}
           </p>
@@ -376,7 +379,9 @@ export function ModernPresenter(props: {
         </div>
       </section>
       <div className="mp-notice" role="status">
-        {props.notice}
+        {props.outputHidden
+          ? "Output page hidden — Take is unavailable. Use Display setup to bring the output window into view, then check the second display. Browser visibility does not confirm physical placement."
+          : props.notice}
       </div>
       {props.setupOpen && (
         <dialog

@@ -28,6 +28,7 @@ export type Kind =
   | "SHOW_SLIDE"
   | "SET_BLANK"
   | "OUTPUT_STATUS"
+  | "OUTPUT_VISIBILITY"
   | "MEDIA_STATUS"
   | "STOP_PRESENTATION"
   | "ERROR";
@@ -45,6 +46,7 @@ export interface Message {
   blank?: boolean;
   fullscreen?: boolean;
   rendered?: boolean;
+  visible?: boolean;
   error?: string;
 }
 const kinds: Kind[] = [
@@ -58,6 +60,7 @@ const kinds: Kind[] = [
   "SHOW_SLIDE",
   "SET_BLANK",
   "OUTPUT_STATUS",
+  "OUTPUT_VISIBILITY",
   "MEDIA_STATUS",
   "STOP_PRESENTATION",
   "ERROR",
@@ -89,6 +92,8 @@ export function valid(x: unknown, session: string): x is Message {
     (m.blank === undefined || typeof m.blank === "boolean") &&
     (m.fullscreen === undefined || typeof m.fullscreen === "boolean") &&
     (m.rendered === undefined || typeof m.rendered === "boolean") &&
+    (m.visible === undefined || typeof m.visible === "boolean") &&
+    (m.type !== "OUTPUT_VISIBILITY" || typeof m.visible === "boolean") &&
     (m.error === undefined || typeof m.error === "string")
   );
 }
