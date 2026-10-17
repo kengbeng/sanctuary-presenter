@@ -20,7 +20,7 @@ async function savedServices(page: Page) {
 }
 test("bilingual paste stages/cancels explicitly and read-only review preserves live output", async ({
   page,
-}) => {
+}, testInfo) => {
   await page.goto("./");
   await page
     .getByLabel("Service name", { exact: true })
@@ -202,7 +202,7 @@ test("bilingual paste stages/cancels explicitly and read-only review preserves l
     controls!.y + 1,
   );
   await page.screenshot({
-    path: "/private/tmp/sanctuary-review-compact.png",
+    path: testInfo.outputPath("sanctuary-review-compact.png"),
     fullPage: true,
   });
 });
