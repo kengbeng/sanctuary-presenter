@@ -34,7 +34,7 @@ These are workspaces and transitions, not a compulsory wizard. A returning opera
 
 Application navigation must expose Services and Library. Settings must open directly as a dialog. A selected service must expose Prepare and Present as clear workspace choices. The service name must remain visible in both workspaces.
 
-When a presentation exists outside Present, a persistent output indicator must offer Return to presentation and immediate Blank. Returning to Prepare must not stop or reveal output. Active-session edits are staged separately from the committed presentation snapshot. The user confirmed Preview → Take and staged edits with explicit Apply on 17 October 2026. Editing, saving and Apply must not reveal a slide; only Take does so. See section 16.7 for the staged-apply contract.
+When a presentation exists outside Present, a persistent output indicator must offer Return to presentation and immediate Blank. Returning to Prepare must not stop or reveal output. Active-session edits are staged separately from the committed presentation snapshot. The user confirmed Preview → Show slide and staged edits with explicit Apply on 17 October 2026. Editing, saving and Apply must not reveal a slide; only Show slide does so. See section 16.7 for the staged-apply contract.
 
 ## 3. Services workspace
 
@@ -143,7 +143,7 @@ Service handover must state its scope. On the same device/browser profile, anoth
 
 ## 5. Output setup dialog
 
-Use the title Connect congregation display and state “The congregation screen stays black until you click Take”. Explain that the current window contains operator controls and a second window contains congregation content. Include:
+Use the title Connect congregation display and state “The congregation screen stays black until you click Show slide”. Explain that the current window contains operator controls and a second window contains congregation content. Include:
 
 - Automatic positioning by default, with actual runtime-discovered display choices only.
 - Manual positioning always available.
@@ -159,7 +159,7 @@ Give capability-specific instructions as short numbered steps beside the action 
 1. Click Open congregation window.
 2. Move the new black window to the projector or second display.
 3. In that window, click Enter fullscreen.
-4. Return to the operator window. Confirm placement if checked, then click Take when ready.
+4. Return to the operator window. Confirm placement if checked, then click Show slide when ready.
 
 If both windows appear on the laptop, explain which one to move and retain a Return to operator cue in the output controls. If no external screen is available, offer clearly labelled Practice on this screen without claiming that the projector is connected.
 
@@ -194,7 +194,7 @@ The presenter must support following a planned sequence and responding to an unp
 | Song navigation area | Arrangement occurrences, direct section controls and individual slide choices |
 | Main preview area | Selected/current preview with truthful state label; acknowledged output reference during transitions |
 | Supporting area | Next slide preview and operator-only notes |
-| Fixed control strip | Previous, slide position, Next, contextual Take, prominent Blank screen |
+| Fixed control strip | Previous, slide position, Next, contextual Show slide, prominent Blank screen |
 
 The song navigation area must be adjacent to the preview and remain reachable without scrolling the service list. Current, Next and essential controls must fit at 1280 × 720. Notes may scroll internally. Avoid enlarging the current preview so much that Next and song controls disappear below the fold.
 
@@ -211,16 +211,16 @@ Service order      Song title / section / page       Next slide
                    Page previews
                    Selected/current 16:9 preview
 ──────────────────────────────────────────────────────────────────────
-Previous  Position  Next             Take          Blank screen
+Previous  Position  Next             Show slide          Blank screen
 ```
 
 At 1280 × 720, budget approximately 56 px for the presenter header and 80 px for the fixed strip, leaving 584 px for content. The order panel starts at 240 px; the supporting column starts at 240 px. Reserve at least 96 px in the centre for compact section/page navigation before sizing the 16:9 preview to the remaining space. Section/page lists may scroll inside that reservation; their headings and active destination must stay visible. The preview must shrink before controls are pushed off-screen. This is a sizing rule, not a promise that every section thumbnail is simultaneously visible.
 
 ### 6.2 Browsing, focus and activation
 
-Expanding a service item, moving keyboard focus, switching song-navigation detail views, opening notes and scrolling are browsing actions. They must not change the runtime cursor or congregation content. Clicking a destination slide, activating a labelled section button, or pressing Previous/Next changes preview selection only. Take is the presentation action in both black and live states. Give these controls clear destination labels and show the current live-navigation policy nearby.
+Expanding a service item, moving keyboard focus, switching song-navigation detail views, opening notes and scrolling are browsing actions. They must not change the runtime cursor or congregation content. Clicking a destination slide, activating a labelled section button, or pressing Previous/Next changes preview selection only. Show slide is the presentation action in both black and live states. Give these controls clear destination labels and show the current live-navigation policy nearby.
 
-Expanding another song may show its sections without replacing the active song cursor. Keep the active item marked and offer Return to current song. That action restores the navigation/preview view of the runtime-selected song without sending a reveal or restarting its page. If requested and acknowledged destinations differ, retain their separate labels. Activating a destination in that song changes the preview cursor only; browsing it alone does not. Neither action changes output before Take. Do not use an entire expandable item row as an immediate-live activation target.
+Expanding another song may show its sections without replacing the active song cursor. Keep the active item marked and offer Return to current song. That action restores the navigation/preview view of the runtime-selected song without sending a reveal or restarting its page. If requested and acknowledged destinations differ, retain their separate labels. Activating a destination in that song changes the preview cursor only; browsing it alone does not. Neither action changes output before Show slide. Do not use an entire expandable item row as an immediate-live activation target.
 
 A song with a single section may omit redundant navigation detail controls when the destinations are identical. Slide sets use page navigation without fabricated Verse/Chorus controls. Non-presenting headings may be inspected but cannot be activated for output.
 
@@ -238,7 +238,7 @@ Track selected content independently from output-acknowledged content.
 
 “On-air” identifies only the latest acknowledged visible destination. After acknowledged Blank, clear its on-air badge; a retained thumbnail must be labelled Last shown. During a transition, indicate Requested destination separately from Last acknowledged. Connection loss invalidates claims about current physical visibility.
 
-The renderer frame must contain only congregation content. Labels, selection borders, slide numbers, notes and diagnostics must remain outside it. A prepared request is not evidence of rendered output. Take must remain unavailable until the connection is acknowledged and the selected frame has completed preparation. Present/Connect display is not a reveal action and remains available subject to service validity.
+The renderer frame must contain only congregation content. Labels, selection borders, slide numbers, notes and diagnostics must remain outside it. A prepared request is not evidence of rendered output. Show slide must remain unavailable until the connection is acknowledged and the selected frame has completed preparation. Present/Connect display is not a reveal action and remains available subject to service validity.
 
 ### 6.4 Sequential navigation
 
@@ -246,7 +246,7 @@ Previous and Next follow the active service arrangement, including repeated sect
 
 At the first slide of the current effective navigation path, disable Previous; a temporary section with a captured prior cursor follows section 7.3 instead. At the last slide, show End of service and disable Next. Do not repeat the final slide as Next, loop automatically, stop automatically or blank automatically.
 
-Confirmed behaviour: Preview first, then Take. Previous/Next, direct section buttons and individual pages select the preview without changing congregation content, whether live or black. The explicit Take action snapshots the selected prepared destination and requests it on output. Keep the last acknowledged live frame visible independently of preview. There is no implicit auto-Take or auto-advance after a successful Take in this increment. This deliberately replaces 0.6.0 immediate live navigation; update shortcut guidance and tests together.
+Confirmed behaviour: Preview first, then Show slide. Previous/Next, direct section buttons and individual pages select the preview without changing congregation content, whether live or black. The explicit Show slide action snapshots the selected prepared destination and requests it on output. Keep the last acknowledged live frame visible independently of preview. There is no implicit auto-Show slide or auto-advance after a successful Show slide in this increment. This deliberately replaces 0.6.0 immediate live navigation; update shortcut guidance and tests together.
 
 ## 7. Song section navigation
 
@@ -300,7 +300,7 @@ An empty section has a disabled destination with “No slides”; it must not cr
 
 ### 7.5 Output and safety during jumps
 
-Section/page jumps always select preview only. Rapid Next presses advance from the latest preview cursor, not from the acknowledged live frame. Take captures an immutable destination/frame for that reveal request; later preview changes do not retarget it. A newer explicit Take supersedes an older in-flight Take, and Blank cancels every pending reveal. Media preparation may happen for preview without permission to reveal. An obsolete preparation completion must never become a Take implicitly. On failure keep the selected preview context and follow the black/error policy.
+Section/page jumps always select preview only. Rapid Next presses advance from the latest preview cursor, not from the acknowledged live frame. Show slide captures an immutable destination/frame for that reveal request; later preview changes do not retarget it. A newer explicit Show slide supersedes an older in-flight Show slide, and Blank cancels every pending reveal. Media preparation may happen for preview without permission to reveal. An obsolete preparation completion must never become a Show slide implicitly. On failure keep the selected preview context and follow the black/error policy.
 
 
 Jumping changes the runtime cursor only. It must not reorder sections, modify the library master, alter the service arrangement or create saved duplicates. Song navigation labels and operator annotations must never enter the projected content.
@@ -309,7 +309,7 @@ Jumping changes the runtime cursor only. It must not reorder sections, modify th
 
 Show song title, full section label and page position near the navigation controls, for example “Amazing Grace · Chorus · slide 2 of 2”. Also show the service item position separately, such as “Item 4 of 12”. A global slide counter alone is insufficient. For repeats, add a concise song-order position cue. Next preview must name its destination and visibly identify a change to another song/item.
 
-Keep distinct cues for the browsed item, requested destination and last confirmed visible destination. Do not create three equally prominent selection colours. Give acknowledged live output the strongest status cue; show requested content as Preparing only during a transition. If the operator browses away, retain a persistent Return to current song action beside the browsed title. It must never be confused with Take.
+Keep distinct cues for the browsed item, requested destination and last confirmed visible destination. Do not create three equally prominent selection colours. Give acknowledged live output the strongest status cue; show requested content as Preparing only during a transition. If the operator browses away, retain a persistent Return to current song action beside the browsed title. It must never be confused with Show slide.
 
 Auto-scroll the active destination into view after a presentation action, but do not seize scroll or focus while the operator is deliberately browsing elsewhere. Blank, heartbeat and background media events must not move focus, change the page layout or scroll the service list. Return to current song restores the view on demand. When a song is repeated as a separate service item, identify the service position so the operator can distinguish the copies.
 
@@ -347,7 +347,7 @@ End presentation is an immediate safety action and must not wait for a confirmat
 
 When a request is awaiting acknowledgement, show Preparing with the requested destination and retain the last confirmed output reference. Continue accepting navigation and Blank. Do not open a modal or spin the entire console into a disabled state. A persistent delay may add “Still waiting for the congregation window” and Details; it must not declare a disconnect before the existing heartbeat policy does. Reuse the established timeout rather than adding conflicting UI timers or claiming an unmeasured response guarantee.
 
-On loss, retain the selected service and a pending destination with a readable item/section/page label. Offer Reconnect display as the primary recovery action. After reconnect acknowledgement, show Congregation screen is black and the pending destination; Take is explicit. Clear transient temporary-run history as specified in section 12 and explain the resulting Next destination. A reconnect cannot silently preserve a temporary return path that has been discarded.
+On loss, retain the selected service and a pending destination with a readable item/section/page label. Offer Reconnect display as the primary recovery action. After reconnect acknowledgement, show Congregation screen is black and the pending destination; Show slide is explicit. Clear transient temporary-run history as specified in section 12 and explain the resulting Next destination. A reconnect cannot silently preserve a temporary return path that has been discarded.
 
 If physical placement or browser fullscreen becomes uncertain, report that dimension separately without presenting an extra service slide, running a test pattern or claiming successful repair. When the app is not focused, its keyboard shortcuts may not run; visible help must say “Click the operator window to use shortcuts”. Do not imply global operating-system hotkeys. The dedicated output must retain its own black-first/disconnection safeguards even when the operator tab is hidden.
 
@@ -403,7 +403,7 @@ Use one canonical visible label per action. The terms in the left column below r
 | --- | --- |
 | Open output | Open congregation window |
 | READY_BLANK / acknowledged black | Congregation screen is black |
-| Reveal selected preview / Show / Restore | Take, with supporting text “Show selected slide” |
+| Reveal selected preview / Show / Restore | Show slide, with supporting text “Show selected slide” |
 | Blank | Blank screen, with “Hide slide immediately” as supporting help |
 | Arrangement | Song order |
 | Snapshot / library master | Copy for this service / Saved song in Library |
@@ -411,9 +411,9 @@ Use one canonical visible label per action. The terms in the left column below r
 | Temporary run | Extra section, followed by its Next destination |
 | Media decode / render failure | “This slide could not be displayed”, followed by a specific useful reason |
 
-When no session exists, the primary action is Connect display. While connected, Take is available for a valid prepared preview in both black and live states. Blank screen remains prominent and immediate. Do not offer competing Show, Restore and Take buttons. While disconnected, show Reconnect display. Disabled actions must explain what to do next in visible text, not a hover-only tooltip. Do not display both Show and Restore as competing buttons.
+When no session exists, the primary action is Connect display. While connected, Show slide is available for a valid prepared preview in both black and live states. Blank screen remains prominent and immediate. Do not offer competing Show, Restore and Show slide buttons. While disconnected, show Reconnect display. Disabled actions must explain what to do next in visible text, not a hover-only tooltip. Do not display both Show and Restore as competing buttons.
 
-Provide a small How to present link beside the first Present entry. It opens a short guide containing Connect display → Take → Next or section jump → Blank screen → End presentation. Help is optional, dismissible and must not open over an ongoing live session automatically. Show shortcut hints beside controls or in an optional guide; every routine action must work with a mouse alone. Use full section names before abbreviations.
+Provide a small How to present link beside the first Present entry. It opens a short guide containing Connect display → Show slide → Next or section jump → Blank screen → End presentation. Help is optional, dismissible and must not open over an ongoing live session automatically. Show shortcut hints beside controls or in an optional guide; every routine action must work with a mouse alone. Use full section names before abbreviations.
 
 Errors should state what happened, its effect and one useful next action. Example: “The congregation window was blocked. Allow pop-up windows for this site, then click Try again.” Keep raw browser errors and protocol details under Details. Avoid simultaneous success banners, tutorial overlays and diagnostics competing with the next action.
 
@@ -422,12 +422,12 @@ Errors should state what happened, its effect and one useful next action. Exampl
 | Input | Behaviour outside protected editing contexts |
 | --- | --- |
 | B or Escape | Immediate Blank from ordinary operator controls, including outside Present |
-| S or existing Shift+B | Take selected preview subject to readiness, in Present only |
+| S or existing Shift+B | Show slide selected preview subject to readiness, in Present only |
 | Existing previous/next arrow keys | Navigate in Present when not owned by a composite control |
 | Enter / Space on destination | Activate the focused slide or section |
 | Tab / Shift+Tab | Move focus in logical order |
 
-Inputs, text areas, native selectors, contenteditable fields, composing text and modal dialogs retain their native/contextual keyboard behaviour. A dialog may consume Escape to close; emergency Blank remains available through the global visible control. Respect defaultPrevented and modifier combinations. Take and previous/next shortcuts must not run in Library or Prepare. B/Escape are global safety exceptions outside protected contexts. Modal Escape closes the dialog and does not also trigger Blank; its explicit Blank button remains available. Ordinary button focus must not disable Blank. Ignore held-key auto-repeat for slide navigation and Show so one held arrow cannot race through the service; repeated Blank is harmless and may remain idempotent. Separate intentional key presses still advance from the latest requested cursor. Native held-key editing and composite focus navigation retain their expected behaviour. A handled key must not also scroll the page or activate a second destination. Avoid keyboard handlers that activate a focused control and global navigation together.
+Inputs, text areas, native selectors, contenteditable fields, composing text and modal dialogs retain their native/contextual keyboard behaviour. A dialog may consume Escape to close; emergency Blank remains available through the global visible control. Respect defaultPrevented and modifier combinations. Show slide and previous/next shortcuts must not run in Library or Prepare. B/Escape are global safety exceptions outside protected contexts. Modal Escape closes the dialog and does not also trigger Blank; its explicit Blank button remains available. Ordinary button focus must not disable Blank. Ignore held-key auto-repeat for slide navigation and Show so one held arrow cannot race through the service; repeated Blank is harmless and may remain idempotent. Separate intentional key presses still advance from the latest requested cursor. Native held-key editing and composite focus navigation retain their expected behaviour. A handled key must not also scroll the page or activate a second destination. Avoid keyboard handlers that activate a focused control and global navigation together.
 
 ## 12. Persistence, privacy and compatibility
 
@@ -502,14 +502,14 @@ Saved pane preferences must not expose content from a previously selected servic
 | UI-59 | Recovery position | Reconnect after a temporary section; clear transient history, keep pending words visible to operator and show the actual Next destination while output stays black |
 | UI-60 | Stable live controls | Preparing, long titles, warnings and status changes do not move Blank or steal focus/scroll during navigation |
 | UI-61 | End versus Blank | Operator chooses Blank for a pause and End for session closure; labels and placement distinguish consequences without a blocking safety dialog |
-| UI-62 | Staged live content | Add/edit in staging; Save does not change the active snapshot; validated Apply updates the sequence without a reveal; Take explicitly reveals a selected prepared slide |
+| UI-62 | Staged live content | Add/edit in staging; Save does not change the active snapshot; validated Apply updates the sequence without a reveal; Show slide explicitly reveals a selected prepared slide |
 | UI-63 | Ministry flow | Build prayer, reading, song, message and response using headings and common Slides; no forced service template, duplicate content category or automatic timing |
 | UI-64 | Public/private review | Distinguish audience wording from operator cues throughout preparation and preview; copying or duplicating a service does not silently publish notes |
 | UI-65 | Scripture and quotation fidelity | Preserve supplied quotation, reference and version text across page breaks; public references appear only when deliberately authored |
 | UI-66 | Human versus technical review | Successful rendering, completed preview and repeated use never imply pastoral approval; copied/changed content remains available for human checking |
 | UI-67 | Prayer and response | Blank remains black until explicit Show; pauses, skipped items and return to prepared response do not trigger automatic content |
 | UI-68 | Sensitive-data handling | Notes/help and backup handover do not imply encryption, restricted access or automatic redaction; synthetic private cues never project |
-| UI-69 | Pastoral changes | Stage an unplanned reading, validate and Apply deliberately, then Take; existing live words remain unchanged by editing or Apply |
+| UI-69 | Pastoral changes | Stage an unplanned reading, validate and Apply deliberately, then Show slide; existing live words remain unchanged by editing or Apply |
 | UI-70 | Pastoral walkthrough | Review the intended public sequence and cues together; revise ambiguous transitions, quotation changes or misleading approval language before acceptance |
 
 Use synthetic services containing bilingual pages, repeated sections, omitted sections, empty items, headings, images and delayed/failed video. Existing user exports are not a prerequisite. Browser automation does not replace actual Safari/Spaces/display rehearsal. Record unperformed Windows physical checks explicitly.
@@ -534,14 +534,14 @@ Before presenter acceptance, run the operator stress walkthrough in [Live-servic
 
 | Decision | Proposed baseline | Reason |
 | --- | --- | --- |
-| Live selection behaviour | Confirmed: preview selection requires separate Take while live or black | Explicit user choice, 17 October 2026 |
+| Live selection behaviour | Confirmed: preview selection requires separate Show slide while live or black | Explicit user choice, 17 October 2026 |
 | Repeated-section quick jump | Resolve current, then next occurrence, then first | Gives direct section access while retaining arrangement position |
 | Section outside arrangement | Temporary run with an explicit resume destination | Supports spontaneous worship-leading changes without rewriting service data |
-| Editing during presentation | Confirmed: allow staged edits with explicit Apply; Take remains a separate reveal | Explicit user choice, 17 October 2026; replaces proposed immutable-session restriction |
+| Editing during presentation | Confirmed: allow staged edits with explicit Apply; Show slide remains a separate reveal | Explicit user choice, 17 October 2026; replaces proposed immutable-session restriction |
 | Replacing a service copy | Replace snapshot/order; retain item identity, notes and item-level appearance; preview all effects | Corrects a chosen copy without an undefined merge or changes to other services |
 | Output setup toolbar during LIVE | Hide on pointer movement; expose through deliberate accessible setup action | Avoids controls appearing over congregation lyrics while retaining fullscreen fallback |
 
-Preview → Take and staged editing with explicit Apply are confirmed. Detailed occurrence/resume rules, source replacement and output setup access still require concrete design review. Resolve those interaction choices before implementing behaviour changes. Layout, information hierarchy and existing safety requirements can be reviewed independently. This specification does not authorise deployment or claim implementation acceptance.
+Preview → Show slide and staged editing with explicit Apply are confirmed. Detailed occurrence/resume rules, source replacement and output setup access still require concrete design review. Resolve those interaction choices before implementing behaviour changes. Layout, information hierarchy and existing safety requirements can be reviewed independently. This specification does not authorise deployment or claim implementation acceptance.
 
 ## 16. UX implementation contract
 
@@ -553,7 +553,7 @@ The design remains a draft. Requirements marked Must are intended acceptance req
 
 | Delivery group | Included scope | Acceptance treatment |
 | --- | --- | --- |
-| Core redesign | Service landing, Prepare/editor/add flow, basic manual song creation, bilingual pages, song order, persistent saves, dedicated Present, direct section/page navigation, setup/recovery, Preview → Take, staged Apply and safety controls | Required for the first redesigned workflow; sequence rules remain gated by section 15 |
+| Core redesign | Service landing, Prepare/editor/add flow, basic manual song creation, bilingual pages, song order, persistent saves, dedicated Present, direct section/page navigation, setup/recovery, Preview → Show slide, staged Apply and safety controls | Required for the first redesigned workflow; sequence rules remain gated by section 15 |
 | Authoring enhancements | Whole-song paste staging, expanded lyric search/duplicate suggestions, structural duplication/moving pages, before/after source replacement, focused review route | Separate increments with their own applicable scenarios; omission must be documented, not presented as core completion |
 | Deferred parity/product work | Durable draft recovery, Trash, formal review signatures, portable service packages/merge, printing, No Words, automatic public overlays, reporting | Not implied by this redesign; preserve the parity inventory and scope separately |
 
@@ -569,14 +569,14 @@ Use one source of truth for each dimension: browsed item, requested destination,
 | Return to current song | Returns to requested song/page | Unchanged | None |
 | Previous/Next or activate section/page while black | Follow destination | Changes | Remains black |
 | Previous/Next or activate section/page while live | Follow preview destination | Preview cursor changes only | Live output unchanged |
-| Take selected prepared preview while black or live | Unchanged | Capture selected destination as immutable Take request | Explicit reveal request; report visible only after acknowledgement |
-| Apply validated staged service | Refresh committed navigation version | Remap preview by source identity or choose a safe pending destination | Live frame unchanged; Take required to change it |
+| Show slide selected prepared preview while black or live | Unchanged | Capture selected destination as immutable Show slide request | Explicit reveal request; report visible only after acknowledgement |
+| Apply validated staged service | Refresh committed navigation version | Remap preview by source identity or choose a safe pending destination | Live frame unchanged; Show slide required to change it |
 | Blank screen from any reachable safety control | Preserve useful selection | Retained, pending reveal cancelled | Independent black request; show Blanking until acknowledged |
 | Close setup | Restore prior focus/view | Unchanged | None |
 | Reconnect | Preserve labelled pending destination | Re-established without old temporary history | New window black; explicit Show required |
 | End presentation | Return to service context | Clear session cursor | Blank and close where reachable |
 
-Take is disabled while disconnected, connecting, blank acknowledgement is pending, no valid destination exists, or frame preparation has not finished. Do not accept a hidden queued Show click during these states. While live, Take remains available to replace the live slide with the selected preview; Blank remains the immediate hide action. Repeated clicks while revealing do not create new sessions. A later explicit Blank always defeats an earlier Show completion. From the moment Blank is accepted, visibility intent is black: subsequent navigation may prepare a pending destination but cannot reveal it, even before black acknowledgement arrives. Only a later eligible explicit Show can restore reveal intent.
+Show slide is disabled while disconnected, connecting, blank acknowledgement is pending, no valid destination exists, or frame preparation has not finished. Do not accept a hidden queued Show click during these states. While live, Show slide remains available to replace the live slide with the selected preview; Blank remains the immediate hide action. Repeated clicks while revealing do not create new sessions. A later explicit Blank always defeats an earlier Show completion. From the moment Blank is accepted, visibility intent is black: subsequent navigation may prepare a pending destination but cannot reveal it, even before black acknowledgement arrives. Only a later eligible explicit Show can restore reveal intent.
 
 When navigating during preparation, operate from the latest requested destination. Ignore obsolete preparation/acknowledgement results when updating current UI. Keep an error associated with the request that caused it; a stale error must not replace the status of a newer valid destination. An individual command acknowledgement is not a hardware or physical-screen verification.
 
@@ -618,8 +618,8 @@ Before implementation sign-off, produce a runnable low-detail prototype for the 
 
 Maintain separate saved working service, committed presentation snapshot and acknowledged live frame. Edits and local saves affect the working service only. Show an unapplied-changes indicator; Cancel staging/discard choices must describe which saved version is being restored. Neither browsing nor local Save may refresh the presentation snapshot automatically.
 
-Apply validates the staged service/media and commits one complete new navigation version. A failed Apply retains both the old committed presentation version and the staged work. Do not partly update text, ordering or references. Apply is not a Take: a currently live frame stays pinned with its assets, even if its source page was edited/deleted. Label it “Live: previous version” while applicable. Keep those assets protected from deletion until they are no longer held by the session.
+Apply validates the staged service/media and commits one complete new navigation version. A failed Apply retains both the old committed presentation version and the staged work. Do not partly update text, ordering or references. Apply is not a Show slide: a currently live frame stays pinned with its assets, even if its source page was edited/deleted. Label it “Live: previous version” while applicable. Keep those assets protected from deletion until they are no longer held by the session.
 
-Map preview identity to the applied version when possible. If its destination was removed, select a deterministic valid pending destination, show what changed and require Take. Never substitute a different destination into an already accepted Take request. Cancel in-flight reveal work during Apply and reject stale completions; changes to the active snapshot must not permit an old request to reveal after Blank. Blank remains independent throughout validation/commit.
+Map preview identity to the applied version when possible. If its destination was removed, select a deterministic valid pending destination, show what changed and require Show slide. Never substitute a different destination into an already accepted Show slide request. Cancel in-flight reveal work during Apply and reject stale completions; changes to the active snapshot must not permit an old request to reveal after Blank. Blank remains independent throughout validation/commit.
 
-A deliberate Take after Apply reveals the chosen prepared slide from the new committed version. Reconnect still starts black. Presentation snapshot versions and staged changes must not be reconstructed as LIVE on reload. Extending the snapshot/asset-reference model requires repository, media-deletion, protocol and integration tests before this feature is claimed complete.
+A deliberate Show slide after Apply reveals the chosen prepared slide from the new committed version. Reconnect still starts black. Presentation snapshot versions and staged changes must not be reconstructed as LIVE on reload. Extending the snapshot/asset-reference model requires repository, media-deletion, protocol and integration tests before this feature is claimed complete.
