@@ -90,7 +90,7 @@ export function ModernPresenter(props: {
     <div className="modern-presenter">
       <div className="mp-title">
         <div>
-          <span className="eyebrow">PRESENT · PREVIEW FIRST, THEN TAKE</span>
+          <span className="eyebrow">PRESENT · PREVIEW, THEN SHOW</span>
           <h1>{props.order?.title ?? "Demo service"}</h1>
         </div>
         <div className="mp-actions">
@@ -198,7 +198,7 @@ export function ModernPresenter(props: {
           <div className="mp-preview-heading">
             <div>
               <span className="eyebrow">
-                PREVIEW ONLY · TAKE SHOWS THIS SLIDE
+                PREVIEW ONLY · NOT YET SHOWN
               </span>
               <h2>
                 {selected?.itemTitle ||
@@ -276,10 +276,10 @@ export function ModernPresenter(props: {
           <p className="mp-preview-caption">
             {props.previewError ||
               (props.outputHidden
-                ? "Preview stays local. Bring the output window into view before Take."
+                ? "Preview stays local. Bring the output window into view before Show slide."
                 : !props.ready
                 ? "Preparing selected preview or waiting for output…"
-                : "Preview ready. Take is a separate action.")}
+                : "Preview ready. Show slide is a separate action.")}
           </p>
         </section>
         <aside className="mp-confirmed">
@@ -370,7 +370,7 @@ export function ModernPresenter(props: {
               disabled={!canReveal}
               onClick={props.onTake}
             >
-              {props.test ? "Show test pattern" : "Take"}
+              {props.test ? "Show test pattern" : "Show slide"}
             </button>
           )}
           <button className="mp-blank" onClick={props.onBlank}>
@@ -380,7 +380,7 @@ export function ModernPresenter(props: {
       </section>
       <div className="mp-notice" role="status">
         {props.outputHidden
-          ? "Output page hidden — Take is unavailable. Use Display setup to bring the output window into view, then check the second display. Browser visibility does not confirm physical placement."
+          ? "Output page hidden — Show slide is unavailable. Use Display setup to bring the output window into view, then check the second display. Browser visibility does not confirm physical placement."
           : props.notice}
       </div>
       {props.setupOpen && (
@@ -396,7 +396,7 @@ export function ModernPresenter(props: {
             <h2>Connect congregation display</h2>
             <button onClick={() => props.onSetup(false)}>Close setup</button>
           </div>
-          <p>New and recovered output stays black until an explicit Take.</p>
+          <p>New and recovered output stays black until you press Show slide.</p>
           {props.setup}
           <div className="mp-actions">
             {props.sessionActive ? (
