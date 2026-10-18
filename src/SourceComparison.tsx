@@ -202,7 +202,7 @@ export function SourceComparison({
       {sessionActive && (
         <p>
           Replacement saves a staged service copy. Apply in Present separately;
-          the current live slide stays unchanged until Take.
+          the current live slide stays unchanged until Show slide.
         </p>
       )}
       {stale && (

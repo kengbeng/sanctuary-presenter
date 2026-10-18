@@ -42,6 +42,7 @@ export function ServiceWorkspace({
   sessionActive,
   onBlank,
   onSavingChange,
+  prepareRequest,
 }: {
   mode: "services" | "prepare" | "review";
   onMode: (mode: "services" | "prepare" | "review") => void;
@@ -50,6 +51,7 @@ export function ServiceWorkspace({
   sessionActive: boolean;
   onBlank: () => void;
   onSavingChange?: (saving: boolean) => void;
+  prepareRequest?: { serviceId: string; token: string };
 }) {
   const orders =
     useLiveQuery(
@@ -169,6 +171,27 @@ export function ServiceWorkspace({
     await db.settings.put({ key: "selectedService", value: order.id });
     onMode("prepare");
   }
+  useEffect(() => {
+    if (!prepareRequest) return;
+    // Keep an existing working copy and its draft intact when returning to it.
+    if (activeId.current === prepareRequest.serviceId) {
+      setReviewOrder(undefined);
+      return;
+    }
+    if (draftDirty) {
+      setError("Finish or cancel the current song draft before opening the presentation service.");
+      return;
+    }
+    let cancelled = false;
+    void run(async () => {
+      await settled();
+      const order = await db.services.get(prepareRequest.serviceId);
+      if (cancelled) return;
+      if (!order) throw Error("The presentation service is no longer saved locally.");
+      await open(order);
+    });
+    return () => { cancelled = true; };
+  }, [prepareRequest]);
   function mutate(change: (order: ServiceOrder) => void) {
     if (!working.current) return;
     const next = structuredClone(working.current);

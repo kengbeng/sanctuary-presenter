@@ -1,4 +1,4 @@
-# Sanctuary Presenter v2 — 0.7.0-rc.2
+# Sanctuary Presenter v2 — 0.7.0-rc.3
 
 A local-first church presentation application for GitHub Pages. Services → Prepare → Review → Present provides independent service copies, bilingual songs, repeated sections, local media and a separate congregation window. This release candidate is for rehearsal. Automated checks do not replace the outstanding Safari/second-display, room-readability and participant checks listed in [release acceptance](docs/RELEASE_ACCEPTANCE.md).
 
@@ -8,8 +8,8 @@ A local-first church presentation application for GitHub Pages. Services → Pre
 2. Enter verses, choruses and bridges, including multiple slides and both language channels. Optional whole-song paste uses explicit `[Section]` lines and `---` slide breaks, followed by Preview and Apply. Save song and add creates a reusable Library song and a separate service copy atomically.
 3. Prepare saves service-copy changes locally. Duplicate/move sections or slides under their options. Custom song orders and notes remain distinct from source Library content. Review service walks the saved public sequence and private cues without changing output.
 4. Choose Present service, open Display setup and open the congregation window. Automatic discovery is available where the browser supports it; manual positioning is always available. New and recovered output starts black. Visually verify the projector.
-5. Select a preview using Next/Previous, a song-order position or a direct section jump. Press **Take** to reveal it. Selection alone does not change live output. **Blank screen** hides content; **End presentation** closes the session. Arrows preview, S or Shift+B takes, and B/Escape blanks outside protected editing/modal contexts. Click the operator window to use shortcuts.
-6. During presentation, Prepare edits remain staged. Apply saved changes in Present replaces the navigation version while keeping the acknowledged live frame; a separate Take reveals new words. Library corrections never silently refresh service copies. Library source → Compare with Library shows the consequences before explicitly replacing one copy.
+5. Select a preview using Next/Previous, a song-order position or a direct section jump. Press **Show slide** to reveal it. Selection alone does not change live output. **Blank screen** hides content; **End presentation** closes the session. Arrows preview, S or Shift+B shows the selected slide, and B/Escape blanks outside protected editing/modal contexts. Click the operator window to use shortcuts.
+6. During presentation, Prepare edits remain staged. Apply saved changes in Present replaces the navigation version while keeping the acknowledged live frame; a separate Show slide reveals new words. Library corrections never silently refresh service copies. Library source → Compare with Library shows the consequences before explicitly replacing one copy.
 
 The operator can deliberately expose output setup controls for an Enter Fullscreen click. Fullscreen may require a fresh gesture; manual positioning, browser fullscreen or windowed output remain available. Pointer movement does not expose controls over live lyrics. Safari Spaces, codecs, projector placement and room readability require actual hardware rehearsal.
 
@@ -57,10 +57,10 @@ The default base is `/<repository>/`. Set repository Actions variable `VITE_BASE
 After deployment, verify the expected release:
 
 ```sh
-node scripts/smoke-deployed.mjs https://kengbeng.github.io/sanctuary-presenter/ 0.7.0-rc.2
+node scripts/smoke-deployed.mjs https://kengbeng.github.io/sanctuary-presenter/ 0.7.0-rc.3
 ```
 
-This checks deployed version metadata, subpath loading, manifest, offline reload, black-first dual-window Take/Blank/End and absence of third-party app requests or write requests. It does not certify physical placement or cold-start behavior on every browser.
+This checks deployed version metadata, subpath loading, manifest, offline reload, black-first dual-window Show slide/Blank/End and absence of third-party app requests or write requests. It does not certify physical placement or cold-start behavior on every browser.
 
 ## v1 conversion
 
@@ -77,4 +77,11 @@ See [implementation plan](docs/NEXT_UPDATES_PLAN.md), [UI specification](docs/US
 
 ## Display recovery follow-up
 
-This candidate defaults browsers without automatic display selection to manual, windowed output. Hidden-page reporting blocks Take; pending Takes have a 15-second confirmation timeout that requests black without claiming physical confirmation. The Acer manual rehearsal covered black startup, preview/Take separation, hidden-output blocking and restoration. Timeout expiry remains unverified manually. See [display follow-up](docs/UPDATE_SAFARI_DISPLAY_SETUP.md) and [manual results](docs/MANUAL_TESTS.md). Safari/Sidecar fullscreen and physical placement are not certified.
+This candidate defaults browsers without automatic display selection to manual, windowed output. Hidden-page reporting blocks Show slide; pending slide requests have a 15-second confirmation timeout that requests black without claiming physical confirmation. The Acer manual rehearsal covered black startup, preview/Show slide separation, hidden-output blocking and restoration. Timeout expiry and rejection of a late confirmation passed a local manual transport-fault check. See [display follow-up](docs/UPDATE_SAFARI_DISPLAY_SETUP.md) and [manual results](docs/MANUAL_TESTS.md). Safari/Sidecar fullscreen and physical placement are not certified.
+
+
+## Operator wording and rehearsal follow-up
+
+The presenter uses **Show slide** instead of the broadcast term Take. **Apply saved changes** still updates the presentation without revealing new words. Prepare / stage edits opens the active saved service directly, including after a browser restart. Keep Safari output windowed: both webpage and native fullscreen lost visibility during different rehearsal attempts.
+
+Manual Acer checks covered song sections/repeated choruses, a two-slide bridge, staged corrections with Library-source isolation, and cached Safari cold restart with the local app origin unavailable. Full network-disconnected hosted restart, representative media, iPad/Sidecar and the remaining participant/accessibility checks remain outstanding. See [manual results](docs/MANUAL_TESTS.md).

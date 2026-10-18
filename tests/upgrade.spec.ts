@@ -199,7 +199,7 @@ test("schema-2 shell keeps live output while update waits, then upgrades saved d
       .click();
     const newOutput = await newPopup;
     await expect(newOutput.locator(".blackout")).toBeVisible();
-    await page.getByRole("button", { name: "Take", exact: true }).click();
+    await page.getByRole("button", { name: "Show slide", exact: true }).click();
     await expect(
       newOutput.getByText("Words preserved across upgrade", { exact: true }),
     ).toBeVisible();

@@ -97,7 +97,7 @@ try {
   await expect(output.locator(".frame:visible")).toHaveCount(0);
   await page
     .getByRole("button", {
-      name: modern ? "Take" : "Show / Restore",
+      name: modern ? "Show slide" : "Show / Restore",
       exact: true,
     })
     .click();

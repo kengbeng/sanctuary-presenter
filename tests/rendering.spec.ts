@@ -409,7 +409,7 @@ for (const modern of [false, true]) {
     await output.evaluate(delayImages);
     await page
       .getByRole("button", {
-        name: modern ? "Take" : "Show / Restore",
+        name: modern ? "Show slide" : "Show / Restore",
         exact: true,
       })
       .click();

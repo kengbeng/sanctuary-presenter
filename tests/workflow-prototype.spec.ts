@@ -41,7 +41,7 @@ async function prepare(page: Page) {
     .getByRole("button", { name: "Connect simulated output", exact: true })
     .click();
 }
-test("prototype previews sections before Take and applies staged changes without changing live words", async ({
+test("prototype previews sections before Show slide and applies staged changes without changing live words", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -53,9 +53,9 @@ test("prototype previews sections before Take and applies staged changes without
     0,
   );
   await expect(
-    page.getByRole("button", { name: "Take", exact: true }),
+    page.getByRole("button", { name: "Show slide", exact: true }),
   ).toBeEnabled();
-  await page.getByRole("button", { name: "Take", exact: true }).click();
+  await page.getByRole("button", { name: "Show slide", exact: true }).click();
   await expect(
     simulated.getByText("Verse words", { exact: true }),
   ).toBeVisible();
@@ -66,7 +66,7 @@ test("prototype previews sections before Take and applies staged changes without
   await expect(
     simulated.getByText("Verse words", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Take", exact: true }).click();
+  await page.getByRole("button", { name: "Show slide", exact: true }).click();
   await expect(
     simulated.getByText("Chorus words", { exact: true }),
   ).toBeVisible();
@@ -77,7 +77,7 @@ test("prototype previews sections before Take and applies staged changes without
   await expect(
     simulated.getByText("Chorus words", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Take", exact: true }).click();
+  await page.getByRole("button", { name: "Show slide", exact: true }).click();
   await expect(
     simulated.getByText("Chorus second page", { exact: true }),
   ).toBeVisible();
@@ -104,7 +104,7 @@ test("prototype previews sections before Take and applies staged changes without
   ).toBeVisible();
   await page.getByRole("button", { name: "Chorus", exact: true }).click();
   await page.getByRole("button", { name: "Slide 2", exact: true }).click();
-  await page.getByRole("button", { name: "Take", exact: true }).click();
+  await page.getByRole("button", { name: "Show slide", exact: true }).click();
   await expect(
     simulated.getByText("Revised staged chorus", { exact: true }),
   ).toBeVisible();
@@ -122,7 +122,7 @@ test("prototype previews sections before Take and applies staged changes without
   await expect(simulated.locator(".frame")).toHaveCount(0);
   await page.getByRole("button", { name: "Bridge", exact: true }).click();
   await expect(simulated.locator(".frame")).toHaveCount(0);
-  await page.getByRole("button", { name: "Take", exact: true }).click();
+  await page.getByRole("button", { name: "Show slide", exact: true }).click();
   await expect(
     simulated.getByText("Bridge words", { exact: true }),
   ).toBeVisible();
@@ -143,7 +143,7 @@ for (const width of [1280, 1024, 640])
       name: "Practice presentation controls",
       exact: true,
     });
-    for (const name of ["Take", "Blank screen", "End presentation"]) {
+    for (const name of ["Show slide", "Blank screen", "End presentation"]) {
       const control = controls.getByRole("button", { name, exact: true });
       await expect(control).toBeInViewport();
     }

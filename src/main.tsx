@@ -542,6 +542,7 @@ function Operator() {
   >(location.hash === "#/app" ? "present" : "services");
   const [loaded, setLoaded] = useState<ServiceOrder>();
   const [workspaceGeneration, setWorkspaceGeneration] = useState(0);
+  const [prepareRequest, setPrepareRequest] = useState<{ serviceId: string; token: string }>();
   const savedServices =
     useLiveQuery(
       () => db.services.orderBy("updatedAt").reverse().toArray(),
@@ -730,13 +731,13 @@ function Operator() {
             setOutputVisible(m.visible);
             if (m.visible)
               setNotice(
-                "Output page visible again. Verify the physical display; Take is still a separate action.",
+                "Output page visible again. Verify the physical display; Show slide is still a separate action.",
               );
           });
         if (!m.visible && takeTimer.current !== undefined) {
           blankOutput();
           setNotice(
-            "Take cancelled because the browser reports the output page is hidden. Black was requested; verify the physical display before retrying.",
+            "Show slide cancelled because the browser reports the output page is hidden. Black was requested; verify the physical display before retrying.",
           );
         }
       }
@@ -748,7 +749,7 @@ function Operator() {
         setFull(!!m.fullscreen);
         change("READY");
         setNotice(
-          "Output window connected. Check the physical display before Take; connection does not confirm visibility.",
+          "Output window connected. Check the physical display before Show slide; connection does not confirm visibility.",
         );
       }
       if (m.type === "OUTPUT_STATUS") {
@@ -758,8 +759,8 @@ function Operator() {
             if (modern && blankIntent.current)
               setNotice(
                 takeTimedOut.current
-                  ? "Take timed out; the output window has now confirmed black. Verify that it is visible on the second display, then retry Take."
-                  : "Congregation output confirmed black. Preview a slide and Take when ready.",
+                  ? "Show slide timed out; the output window has now confirmed black. Verify that it is visible on the second display, then retry Show slide."
+                  : "Congregation output confirmed black. Preview a slide, then press Show slide when ready.",
               );
             blankIntent.current = false;
             setBlankPending(false);
@@ -779,7 +780,7 @@ function Operator() {
             }
             if (modern)
               setNotice(
-                "Taken to congregation output. Selection now changes preview only. " +
+                "Slide shown on congregation output. Selection now changes preview only. " +
                   (takeWarnings.current.get(m.frameId ?? "") ?? []).join(" "),
               );
           }
@@ -1060,12 +1061,12 @@ function Operator() {
         )
           return;
         // Invalidate pending preparation and send a newer black intent. A late
-        // frame acknowledgement cannot turn this cancelled Take into LIVE.
+        // frame acknowledgement cannot turn this cancelled Show slide into LIVE.
         blankOutput();
         takeTimedOut.current = true;
-        setMediaState("Take timed out");
+        setMediaState("Show slide timed out");
         setNotice(
-          "Take timed out. Black was requested but is not yet confirmed. Check the second display and bring the output window into view. If it is unresponsive, end the presentation and reconnect; retry Take only after verifying placement.",
+          "Show slide timed out. Black was requested but is not yet confirmed. Check the second display and bring the output window into view. If it is unresponsive, end the presentation and reconnect; retry Show slide only after verifying placement.",
         );
       }, 15000);
     try {
@@ -1104,7 +1105,7 @@ function Operator() {
       flushSync(() => {
         setOutputVisible(false);
         setNotice(
-          "The browser reports the output page is hidden. Bring it into view on the second display and verify placement before Take.",
+          "The browser reports the output page is hidden. Bring it into view on the second display and verify placement before Show slide.",
         );
       });
       return;
@@ -1122,7 +1123,7 @@ function Operator() {
     if (["READY_BLANK", "BLANKED", "LIVE"].includes(phaseRef.current)) {
       setNotice(
         modern
-          ? "Preparing Take. Current output remains unchanged until the slide is ready."
+          ? "Preparing slide for display. Current output remains unchanged until the slide is ready."
           : "Preparing selected slide. Output stays black until ready.",
       );
       void transmit(slide);
@@ -1274,7 +1275,7 @@ function Operator() {
       setSlide(Math.max(0, match));
       version.current++;
       setNotice(
-        "Changes applied. Live words are unchanged. Preview a slide and Take when ready.",
+        "Changes applied. Live words are unchanged. Preview a slide, then press Show slide when ready.",
       );
     } catch (error) {
       setNotice("Apply failed: " + String(error));
@@ -1470,11 +1471,12 @@ function Operator() {
           Request fullscreen
         </label>
         <p className="muted">
-          Your browser may require clicking Enter Fullscreen inside the output
-          window. If Safari shows a white or grey “Click to Exit Full Screen”
-          placeholder, exit fullscreen and use windowed output. Browser/window
-          fullscreen is optional; recheck the second display after switching
-          back to the operator.
+          Keep Safari output windowed on the second display. In our rehearsal,
+          both webpage and native window fullscreen could switch away from the
+          congregation output when returning to the operator or editing.
+          Fullscreen is optional. If output disappears or Safari shows a white
+          or grey “Click to Exit Full Screen” placeholder, request Blank, exit
+          fullscreen, and verify the windowed output before showing a slide.
         </p>
       </details>
       {sessionActive && phase !== "DISCONNECTED" && (
@@ -1526,7 +1528,7 @@ function Operator() {
       <p className="muted">
         Preview and connection status cannot confirm which desktop or app the
         physical display is showing. If it shows the desktop or another app,
-        Blank, reposition the output, and verify it before Take. Native window
+        Blank, reposition the output, and verify it before Show slide. Native window
         fullscreen is not reported by the webpage fullscreen indicator.
       </p>
     </section>
@@ -1584,6 +1586,7 @@ function Operator() {
                 : "prepare"
           }
           onMode={setView}
+          prepareRequest={prepareRequest}
           onLibrary={() => setView("library")}
           sessionActive={sessionActive}
           onBlank={blankOutput}
@@ -1593,7 +1596,7 @@ function Operator() {
               setStagedId(order.id);
               setView("present");
               setNotice(
-                "Saved version is staged. Apply changes, then preview and Take deliberately.",
+                "Saved version is staged. Apply changes, select a preview, then press Show slide.",
               );
             } else loadService(order);
           }}
@@ -1678,7 +1681,10 @@ function Operator() {
           onBlank={blankOutput}
           onStart={start}
           onStop={stop}
-          onPrepare={() => setView("prepare")}
+          onPrepare={() => {
+            if (loaded) setPrepareRequest({ serviceId: loaded.id, token: crypto.randomUUID() });
+            setView("prepare");
+          }}
           setupOpen={setupOpen}
           onSetup={setSetupOpen}
           onSetupControls={() => {
@@ -1856,7 +1862,7 @@ function Operator() {
                 ? "Congregation output acknowledged"
                 : ["READY_BLANK", "BLANKED"].includes(phase)
                   ? modern
-                    ? "Output acknowledged black; return to Present to Take"
+                    ? "Output acknowledged black; return to Present and press Show slide"
                     : "Show reveals the pending slide"
                   : phase === "DISCONNECTED"
                     ? "Verify the congregation display"
@@ -1935,7 +1941,7 @@ function Operator() {
             ? "● App shell cached · offline ready"
             : "○ Offline cache not yet confirmed"}
         </span>
-        <span>Keys: ← → preview · B blank · S take · Esc blank</span>
+        <span>Keys: ← → preview · B blank · S show slide · Esc blank</span>
         {update && (
           <button
             disabled={live.current || otherActive || applyingUpdate}

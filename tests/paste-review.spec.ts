@@ -149,7 +149,7 @@ test("bilingual paste stages/cancels explicitly and read-only review preserves l
     .getByRole("button", { name: "Open congregation window", exact: true })
     .click();
   const output = await opening;
-  await page.getByRole("button", { name: "Take", exact: true }).click();
+  await page.getByRole("button", { name: "Show slide", exact: true }).click();
   await expect(output.getByText("First line", { exact: false })).toBeVisible();
   await page
     .getByRole("button", { name: "Prepare / stage edits", exact: true })

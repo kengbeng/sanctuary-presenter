@@ -29,3 +29,12 @@ Page Visibility is a browser signal, not proof of a physical monitor, visible ma
 The hidden-output caption now explains that preview remains local and the output must be brought into view; it no longer labels this state as preparation. Visibility transitions commit the external-window signal synchronously so the operator controls reflect it before another action. A return to visible output replaces stale hidden guidance, while still requiring a separate Take and physical placement check. The keyboard/action guard also synchronises the hidden state before refusing Take.
 
 TypeScript and production build pass. The manual Acer minimise/restore retest in MANUAL_TESTS.md confirmed the new caption, disabled Take while hidden, visible-state guidance after restoration and a user-confirmed Welcome reveal after Take. No automated suites ran. This does not certify the remaining timeout or Safari/Sidecar scenarios, and the changes remain local.
+
+
+## Published candidate and manual closure checks — 17 October 2026
+
+The historical local-only statements above describe development checkpoints. Version 0.7.0-rc.2 was subsequently published through PR #2. GitHub Actions run 39038605524 passed and deployed it; release.json confirmed the hosted version.
+
+The later Acer rehearsal applied the waiting 0.7.0-rc.2 app shell before testing native window fullscreen. Black startup, deliberate test-pattern reveal, continued operator usability and immediate Blank were user-confirmed. For this setup, leave Request fullscreen unchecked, move the window to Acer B247Y, and use the native macOS window fullscreen control. Safari webpage fullscreen reproduced the white/grey exit placeholder on the preceding cached-candidate attempt and remains a failed path. iPad/Sidecar has not been retested.
+
+The current production bundle also passed a manual local transport-fault check: hold a rendered slide confirmation while heartbeats continue, wait beyond the real 15-second deadline, confirm timeout/black recovery, deliver the old confirmation with a fresh sequence, verify no LIVE transition, then explicitly Take again. The user confirmed black after timeout and Welcome after the fresh Take. The injected local fixture is reproducible with tools/manual_fault_server.py and is not production code. Exact evidence and remaining limits are in MANUAL_TESTS.md.

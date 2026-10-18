@@ -109,7 +109,7 @@ export default function WorkflowPrototype() {
   }
   function select(index: number) {
     setSelection(index);
-    setNotice("Preview selected. Click Take to show these words.");
+    setNotice("Preview selected. Click Show slide to show these words.");
   }
   function apply() {
     if (!working) return;
@@ -127,7 +127,7 @@ export default function WorkflowPrototype() {
       ),
     );
     setNotice(
-      "Changes applied to the practice sequence. Live words stay unchanged until Take.",
+      "Changes applied to the practice sequence. Live words stay unchanged until Show slide.",
     );
   }
   function take() {
@@ -393,7 +393,7 @@ export default function WorkflowPrototype() {
                     <div className="wf-panel-title">
                       <div>
                         <span className="wf-eyebrow">
-                          PREVIEW · NOT ON OUTPUT UNTIL TAKE
+                          PREVIEW · NOT ON OUTPUT UNTIL SHOW SLIDE
                         </span>
                         <h2>{selectedItem?.title || "Select a song"}</h2>
                       </div>
@@ -481,7 +481,7 @@ export default function WorkflowPrototype() {
                     </div>
                     {live && live.version !== version && (
                       <p className="wf-warning">
-                        Live: previous version. Take to show the new preview.
+                        Live: previous version. Show slide to show the new preview.
                       </p>
                     )}
                     <h3>Next preview</h3>
@@ -493,7 +493,7 @@ export default function WorkflowPrototype() {
                     <h3>Operator notes</h3>
                     <p className="wf-muted">
                       Wait for the worship leader's cue. Preview the section,
-                      then Take.
+                      then Show slide.
                     </p>
                   </aside>
                 </>
@@ -538,7 +538,7 @@ export default function WorkflowPrototype() {
                         }
                         onClick={take}
                       >
-                        Take
+                        Show slide
                       </button>
                       <button className="wf-blank" onClick={blank}>
                         Blank screen
@@ -726,7 +726,7 @@ export default function WorkflowPrototype() {
                 This prototype simulates a congregation screen inside the
                 operator page. It does not open a projector window.
               </p>
-              <p>Real output will start black and need a separate Take.</p>
+              <p>Real output will start black and need a separate Show slide.</p>
               {connected && (
                 <button className="wf-blank" onClick={blank}>
                   Blank screen
@@ -743,7 +743,7 @@ export default function WorkflowPrototype() {
                     setVersion((v) => v + 1);
                     setSetup(false);
                     setNotice(
-                      "Practice display connected black. Select a preview and click Take.",
+                      "Practice display connected black. Select a preview and click Show slide.",
                     );
                   }}
                 >

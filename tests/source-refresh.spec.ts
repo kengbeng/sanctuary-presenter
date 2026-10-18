@@ -104,7 +104,7 @@ async function editSource(page: Page, words: string) {
     "Library master saved",
   );
 }
-test("comparison cancel is read-only and whole-copy refresh stays staged until Apply and Take", async ({
+test("comparison cancel is read-only and whole-copy refresh stays staged until Apply and Show slide", async ({
   page,
   context,
 }) => {
@@ -148,7 +148,7 @@ test("comparison cancel is read-only and whole-copy refresh stays staged until A
     .getByRole("button", { name: "Open congregation window", exact: true })
     .click();
   const output = await opening;
-  await page.getByRole("button", { name: "Take", exact: true }).click();
+  await page.getByRole("button", { name: "Show slide", exact: true }).click();
   await expect(
     output.getByText("Service correction", { exact: true }),
   ).toBeVisible();
@@ -222,7 +222,7 @@ test("comparison cancel is read-only and whole-copy refresh stays staged until A
   await expect(
     output.getByText("Service correction", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Take", exact: true }).click();
+  await page.getByRole("button", { name: "Show slide", exact: true }).click();
   await expect(
     output.getByText("Revised Library words", { exact: true }),
   ).toBeVisible();

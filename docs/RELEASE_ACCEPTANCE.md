@@ -1,4 +1,4 @@
-# Release acceptance — 0.7.0-rc.2
+# Release acceptance — 0.7.0-rc.3
 
 Rehearsal candidate, 17 October 2026. This release introduces Services → Prepare → Present, structured song authoring, bilingual search, read-only review, source comparison and explicit staged Apply/Take. It is not a claim that every interface acceptance scenario is complete.
 
@@ -87,6 +87,25 @@ The table records coverage, not blanket acceptance. “Partial” means automate
 
 ## 0.7.0-rc.2 follow-up
 
-Manual Acer B247Y results cover windowed black startup, preview/Take separation, hidden-output blocking, restoration guidance and a user-confirmed deliberate reveal. The hidden caption and stale restore guidance were corrected and manually rechecked. See MANUAL_TESTS.md for exact observations and limitations. TypeScript and production bundling pass locally. Required GitHub Actions checks remain the deployment gate; the earlier baseline counts above must not be read as new evidence for this candidate until CI completes.
+Manual Acer B247Y results cover windowed black startup, preview/Take separation, hidden-output blocking, restoration guidance and a user-confirmed deliberate reveal. The hidden caption and stale restore guidance were corrected and manually rechecked. See MANUAL_TESTS.md for exact observations and limitations. TypeScript and production bundling pass locally. GitHub Actions run 39038605524 passed all required checks, including 54 browser integration tests, and deployed the candidate. The hosted release.json confirmed 0.7.0-rc.2, schema 3 and backup format 5.
 
-Pending timeout expiry and late-acknowledgement behaviour have not been exercised manually. Browser visibility does not prove physical placement. The Safari/iPad fullscreen and desktop-visibility failures remain unresolved. The candidate is for rehearsal; unchanged physical, participant, media and offline acceptance gaps remain open.
+The subsequent manual transport-fault rehearsal exercised timeout expiry, black recovery, rejection of a late confirmation with a fresh sequence number, and a successful fresh Take. Native macOS fullscreen passed the Acer black/pattern/Blank rehearsal on 0.7.0-rc.2. Safari webpage fullscreen reproduced the exit placeholder on the previously cached candidate and is not accepted on that attempt. Use the verified native-window fallback for this Acer setup. Browser visibility does not prove physical placement. iPad/Sidecar was not retested and its earlier failure remains open. See the dated closure checks in MANUAL_TESTS.md for exact scope. The candidate is for rehearsal; unchanged physical, participant, media and offline acceptance gaps remain open.
+
+
+The subsequent Safari/Acer song-navigation rehearsal confirmed section preview isolation, Chorus selection at repeated positions, both Bridge pages, final-page boundaries, a backward Verse 2 Take and navigation while blank. The session was ended. These observations narrow the outstanding hardware gaps for this labelled seven-slide song; they do not certify all songs, staged corrections or the full service workflow. See the 17 October song-navigation entry in MANUAL_TESTS.md.
+
+
+On 18 October, the staged-edit rehearsal confirmed Save and Apply leave original words live, but native-fullscreen output later became hidden and the user saw the Acer desktop/another app. Native fullscreen therefore remains a conditional workaround, not accepted as reliable across editing/window transitions. Windowed recovery and the final corrected reveal are being checked; see the dated manual entry.
+
+
+The staged-correction rehearsal subsequently completed in windowed mode: the user confirmed black recovery and corrected words only after Show slide. The Library master retained the original words, and the session was blanked and ended. Save/Apply/reveal isolation and service-copy/source isolation pass for this practice song. The fullscreen/Spaces failure and Prepare routing issue remain open.
+
+
+On 18 October, Safari cold restart with the local app origin unavailable passed for the saved synthetic service, cached operator/new output, explicit Show slide, preview isolation and blank navigation. The server was stopped during the check and restarted afterward. Network connectivity elsewhere on the Mac remained enabled. Hosted GitHub Pages cold restart with networking disabled and representative media is still outstanding; do not substitute this local-origin result for that broader gate.
+
+
+## 0.7.0-rc.3 publication candidate — 18 October 2026
+
+Includes Show slide terminology across the operator/practice UI, current instructions and test selectors; active-service Prepare routing after browser restart; windowed-Safari guidance; and the scoped manual results above. TypeScript, lint, bundling and seven presenter browser checks passed before the release-version bump. Required CI remains the publication gate for this candidate. Earlier local/unpublished statements describe their development checkpoints. The local manual fault server is a developer-only tool, excluded from the Pages artifact; it injects deliberately held confirmations and must never be used to host a real service.
+
+This remains a rehearsal release. Safari fullscreen/Spaces reliability is not fixed. Hosted network-disconnected cold restart with representative media remains pending.
