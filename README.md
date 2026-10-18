@@ -77,7 +77,7 @@ See [implementation plan](docs/NEXT_UPDATES_PLAN.md), [UI specification](docs/US
 
 ## Display recovery follow-up
 
-This candidate defaults browsers without automatic display selection to manual, windowed output. Hidden-page reporting blocks Show slide; pending Takes have a 15-second confirmation timeout that requests black without claiming physical confirmation. The Acer manual rehearsal covered black startup, preview/Show slide separation, hidden-output blocking and restoration. Timeout expiry remains unverified manually. See [display follow-up](docs/UPDATE_SAFARI_DISPLAY_SETUP.md) and [manual results](docs/MANUAL_TESTS.md). Safari/Sidecar fullscreen and physical placement are not certified.
+This candidate defaults browsers without automatic display selection to manual, windowed output. Hidden-page reporting blocks Show slide; pending slide requests have a 15-second confirmation timeout that requests black without claiming physical confirmation. The Acer manual rehearsal covered black startup, preview/Show slide separation, hidden-output blocking and restoration. Timeout expiry and rejection of a late confirmation passed a local manual transport-fault check. See [display follow-up](docs/UPDATE_SAFARI_DISPLAY_SETUP.md) and [manual results](docs/MANUAL_TESTS.md). Safari/Sidecar fullscreen and physical placement are not certified.
 
 
 ## Operator wording and rehearsal follow-up
