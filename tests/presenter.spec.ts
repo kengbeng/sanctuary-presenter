@@ -1,6 +1,6 @@
 import { id, makeItem, newContent, newPage, now } from "../src/model";
 import { test, expect } from "@playwright/test";
-test("real presenter requires Take after preview and preserves live words through Apply", async ({
+test("real presenter requires Show slide after preview and preserves live words through Apply", async ({
   page,
 }) => {
   await page.goto("./");
@@ -29,17 +29,15 @@ test("real presenter requires Take after preview and preserves live words throug
     .getByRole("button", { name: "Save song and add to service", exact: true })
     .click();
   await expect(drawer).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Present service", exact: true })
-    .last()
-    .click();
+  await page.reload();
+  await page.getByRole("button", { name: "Present", exact: true }).click();
   const opening = page.waitForEvent("popup");
   await page
     .getByRole("button", { name: "Open congregation window", exact: true })
     .click();
   const output = await opening;
   await expect(output.locator(".blackout")).toBeVisible();
-  const take = page.getByRole("button", { name: "Take", exact: true });
+  const take = page.getByRole("button", { name: "Show slide", exact: true });
   await expect(take).toBeEnabled();
   await take.click();
   await expect(
@@ -58,6 +56,8 @@ test("real presenter requires Take after preview and preserves live words throug
   await output.mouse.move(20, 20);
   await expect(output.locator(".output-tools")).toBeHidden();
   await page.screenshot({ path: "docs/presenter-preview.png", fullPage: true });
+  // A restored presenter has a selected service but no workspace working copy.
+  // The dedicated entry must still open the active saved service directly.
   await page
     .getByRole("button", { name: "Prepare / stage edits", exact: true })
     .click();
@@ -139,7 +139,7 @@ for (const viewport of [
   });
 }
 
-test("modern output opens offline, Take is explicit and live setup controls require an operator action", async ({
+test("modern output opens offline, Show slide is explicit and live setup controls require an operator action", async ({
   page,
   context,
 }) => {
@@ -156,7 +156,7 @@ test("modern output opens offline, Take is explicit and live setup controls requ
     .getByRole("button", { name: "Open congregation window", exact: true })
     .click();
   const output = await opening;
-  const take = page.getByRole("button", { name: "Take", exact: true });
+  const take = page.getByRole("button", { name: "Show slide", exact: true });
   await expect(output.locator(".blackout")).toBeVisible();
   await expect(take).toBeEnabled();
   await take.click();
