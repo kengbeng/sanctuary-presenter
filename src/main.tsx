@@ -512,15 +512,21 @@ function Operator() {
     page: Page;
     frameId: string;
     version: number;
+    extra?: ExtraSection;
   }>();
   const takeRecords = useRef(
-    new Map<string, { page: Page; frameId: string; version: number }>(),
+    new Map<string, { page: Page; frameId: string; version: number; extra?: ExtraSection }>(),
   );
   const takeWarnings = useRef(new Map<string, string[]>());
   const pendingTake = useRef<string | undefined>(undefined);
   const takeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const takeTimedOut = useRef(false);
+  const [previewOnly, setPreviewOnly] = useState(false);
+  const [directRequest, setDirectRequest] = useState<{
+    key: string; session: string; generation: number;
+  }>();
   function clearTakeTimer() {
+    setDirectRequest(undefined);
     if (takeTimer.current !== undefined) clearTimeout(takeTimer.current);
     takeTimer.current = undefined;
   }
@@ -724,6 +730,7 @@ function Operator() {
       if (typeof m.visible === "boolean") {
         const visibilityChanged = outputVisibleRef.current !== m.visible;
         outputVisibleRef.current = m.visible;
+        if (!m.visible) setDirectRequest(undefined);
         if (visibilityChanged)
           // Commit this external-window signal before the next operator action.
           // Safari can defer rendering while windows are minimised or restored.
@@ -780,7 +787,7 @@ function Operator() {
             }
             if (modern)
               setNotice(
-                "Slide shown on congregation output. Selection now changes preview only. " +
+                "Slide shown on congregation output. " +
                   (takeWarnings.current.get(m.frameId ?? "") ?? []).join(" "),
               );
           }
@@ -1088,6 +1095,7 @@ function Operator() {
         page,
         frameId,
         version: version.current,
+        extra,
       });
       send("SHOW_SLIDE", { frameId });
     } catch (error) {
@@ -1151,16 +1159,65 @@ function Operator() {
     change("BLANK");
     send("SET_BLANK");
   }
-  function navigate(n: number) {
-    const next = Math.max(0, Math.min(framesRef.current.length - 1, n));
+  function cancelNavigationReveal() {
+    const pending = takeTimer.current !== undefined || !!directRequest;
+    clearTakeTimer();
+    showGeneration.current++;
+    // A frame already rendered before cancellation can still acknowledge the
+    // unchanged live output. New reveals and Blank replace this frame identity.
+    setSending(false);
+    setMediaState("Ready");
+    if (pending && live.current && cueReady)
+      send("CANCEL_PENDING", { frameId: crypto.randomUUID() });
+  }
+  function selectDestination(index: number, nextExtra: ExtraSection | undefined) {
+    const path = loaded ? presentationPath(loaded, nextExtra) : framesRef.current;
+    const next = Math.max(0, Math.min(path.length - 1, index));
+    const direct = modern && !test && !previewOnly && desiredVisible.current &&
+      phaseRef.current === "LIVE" && !blankIntent.current && !applying &&
+      outputVisibleRef.current !== false;
+    if (modern) cancelNavigationReveal();
+    setExtra(nextExtra);
     setSlide(next);
-    if (
-      !modern &&
-      desiredVisible.current &&
-      ["LIVE", "BLANKED", "READY_BLANK"].includes(phaseRef.current)
-    )
+    if (direct && path[next])
+      setDirectRequest({ key: JSON.stringify(path[next]), session: session.current,
+        generation: showGeneration.current });
+    else if (!modern && desiredVisible.current &&
+      ["LIVE", "BLANKED", "READY_BLANK"].includes(phaseRef.current))
       void transmit(next);
   }
+  function navigate(n: number) { selectDestination(n, extra); }
+  function changePreviewMode(enabled: boolean) {
+    cancelNavigationReveal();
+    setPreviewOnly(enabled);
+    setNotice(enabled
+      ? "Preview only: select any slide without changing congregation output. Press Show slide when ready, or Return to live."
+      : "Direct control: selecting a slide shows it while live. Black output stays black until Show slide.");
+  }
+  function returnToLive() {
+    cancelNavigationReveal();
+    setPreviewOnly(false);
+    const path = loaded ? presentationPath(loaded, liveFrame?.extra) : framesRef.current;
+    const index = path.findIndex((page) => page.id === liveFrame?.page.id);
+    if (index >= 0) { setExtra(liveFrame?.extra); setSlide(index); }
+    setNotice("Direct control restored. Congregation output is unchanged.");
+  }
+  useEffect(() => {
+    if (!directRequest) return;
+    if (directRequest.session !== session.current ||
+      directRequest.generation !== showGeneration.current || previewOnly ||
+      view !== "present" || !desiredVisible.current || outputVisible === false ||
+      applying || phase === "DISCONNECTED") {
+      setDirectRequest(undefined);
+      return;
+    }
+    if (preparedPreview?.key === directRequest.key && previewKey === directRequest.key &&
+      pinsReady && cueReady && !blankPending && !previewError) {
+      setDirectRequest(undefined);
+      show();
+    } else if (previewError) setDirectRequest(undefined);
+  }, [directRequest, preparedPreview, previewKey, previewOnly, view, outputVisible,
+    applying, phase, pinsReady, cueReady, blankPending, previewError]);
   function loadService(order: ServiceOrder) {
     setExtra(undefined);
     setStagedId(undefined);
@@ -1182,6 +1239,7 @@ function Operator() {
       (order) => order.id === (stagedId ?? loaded?.id),
     );
     if (!staged || !modern || applying || workspaceSaving) return;
+    changePreviewMode(true);
     const generation = ++applyGeneration.current,
       currentSession = session.current;
     const controller = new AbortController();
@@ -1294,8 +1352,7 @@ function Operator() {
       itemId,
     );
     if (jump) {
-      setExtra(jump.extra);
-      setSlide(jump.index);
+      selectDestination(jump.index, jump.extra);
     }
   }
   async function createService() {
@@ -1388,6 +1445,8 @@ function Operator() {
     pinsReady,
     cueReady,
     test,
+    previewOnly,
+    directRequest,
   ]);
   const [workspaceSaving, setWorkspaceSaving] = useState(false);
   const isPreparing =
@@ -1660,21 +1719,17 @@ function Operator() {
             )
           }
           onApply={() => void applyStaged()}
+          previewOnly={previewOnly}
+          onPreviewOnly={changePreviewMode}
+          onReturnToLive={returnToLive}
           onPreview={navigate}
           onSection={jumpSection}
           onOccurrence={(itemId, occurrence, pageId) => {
             if (!loaded) return;
-            setExtra(undefined);
-            setSlide(
-              Math.max(
-                0,
-                servicePages(loaded).findIndex(
-                  (page) =>
-                    page.itemId === itemId &&
-                    page.occurrenceIndex === occurrence &&
-                    (!pageId || page.sourcePageId === pageId),
-                ),
-              ),
+            selectDestination(
+              Math.max(0, servicePages(loaded).findIndex((page) =>
+                page.itemId === itemId && page.occurrenceIndex === occurrence &&
+                (!pageId || page.sourcePageId === pageId))), undefined,
             );
           }}
           onTake={show}
@@ -1941,7 +1996,7 @@ function Operator() {
             ? "● App shell cached · offline ready"
             : "○ Offline cache not yet confirmed"}
         </span>
-        <span>Keys: ← → preview · B blank · S show slide · Esc blank</span>
+        <span>Keys: ← → navigate · B blank · S show slide · Esc blank</span>
         {update && (
           <button
             disabled={live.current || otherActive || applyingUpdate}

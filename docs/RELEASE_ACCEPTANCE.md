@@ -109,3 +109,13 @@ On 18 October, Safari cold restart with the local app origin unavailable passed 
 Includes Show slide terminology across the operator/practice UI, current instructions and test selectors; active-service Prepare routing after browser restart; windowed-Safari guidance; and the scoped manual results above. TypeScript, lint, bundling and seven presenter browser checks passed before the release-version bump. Required CI remains the publication gate for this candidate. Earlier local/unpublished statements describe their development checkpoints. The local manual fault server is a developer-only tool, excluded from the Pages artifact; it injects deliberately held confirmations and must never be used to host a real service.
 
 This remains a rehearsal release. Safari fullscreen/Spaces reliability is not fixed. Hosted network-disconnected cold restart with representative media remains pending.
+
+
+### Hosted cold-start follow-up — 18 October 2026
+
+The user confirmed 0.7.0-rc.3 and the saved rehearsal service opened after the instructed full internet-disconnected Safari restart. Hosted cached startup and saved-service access now pass for this profile. Representative imported media and a complete physical-output service while fully disconnected remain unverified. Earlier statements that hosted cold startup was pending describe prior checkpoints; this result supersedes that narrow pending item, not broader offline acceptance.
+
+
+### Imported-media offline rehearsal — 19 October 2026
+
+Connected Safari/Acer rehearsal confirmed PNG display, image-to-video preview isolation, MP4 motion and immediate black output with preview navigation. The session ended and a full backup was exported. The user subsequently reported all steps passed after full network disconnection and Safari restart: hosted app/saved media service, black windowed output startup, image reveal, moving video, Blank and End. This closes the focused synthetic-image/MP4 offline output gate for this setup. Actual ministry media, audio, broader codec/browser coverage, long-service recovery, room readability, accessibility and participant acceptance remain open. Safari fullscreen reliability is not resolved.

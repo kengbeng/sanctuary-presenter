@@ -1,6 +1,6 @@
 import { id, makeItem, newContent, newPage, now } from "../src/model";
 import { test, expect } from "@playwright/test";
-test("real presenter requires Show slide after preview and preserves live words through Apply", async ({
+test("preview-only mode requires Show slide and preserves live words through Apply", async ({
   page,
 }) => {
   await page.goto("./");
@@ -37,6 +37,7 @@ test("real presenter requires Show slide after preview and preserves live words 
     .click();
   const output = await opening;
   await expect(output.locator(".blackout")).toBeVisible();
+  await page.getByRole("checkbox", { name: "Preview only", exact: true }).check();
   const take = page.getByRole("button", { name: "Show slide", exact: true });
   await expect(take).toBeEnabled();
   await take.click();
@@ -271,4 +272,80 @@ test("song controls distinguish repeated choruses and resume after an unplanned 
   await page.keyboard.press("Enter");
   await expect(preview).toContainText("Verse page 1");
   await expect(page.locator(".mp-extra")).toHaveCount(0);
+  await page.getByRole("button", { name: "Display setup", exact: true }).click();
+  const opening = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Open congregation window", exact: true }).click();
+  const output = await opening;
+  const show = page.getByRole("button", { name: "Show slide", exact: true });
+  await expect(show).toBeEnabled(); await show.click();
+  await expect(output.getByText("Verse page 1", { exact: true })).toBeVisible();
+  await secondChorus.click();
+  await expect(output.getByText("Chorus page 1", { exact: true })).toBeVisible();
+  await page.locator('[aria-label="Direct song sections"]').getByRole("button", { name: "Bridge", exact: true }).click();
+  await expect(output.getByText("Bridge page 1", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Slide 2", exact: true }).click();
+  await expect(output.getByText("Bridge page 2", { exact: true })).toBeVisible();
+  await page.getByRole("checkbox", { name: "Preview only", exact: true }).check();
+  await secondChorus.click();
+  await expect(preview).toContainText("Chorus page 1");
+  await expect(output.getByText("Bridge page 2", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Return to live", exact: true }).click();
+  await expect(preview).toContainText("Bridge page 2");
+  await expect(page.locator(".mp-extra")).toBeVisible();
+  await expect(output.getByText("Bridge page 2", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "End presentation", exact: true }).click();
+});
+
+
+test("direct control is one-click while live, with optional preview and black-first navigation", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: "Present", exact: true }).click();
+  const opening = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Open congregation window", exact: true }).click();
+  const output = await opening;
+  const show = page.getByRole("button", { name: "Show slide", exact: true });
+  const previewOnly = page.getByRole("checkbox", { name: "Preview only", exact: true });
+  await expect(previewOnly).not.toBeChecked();
+  await expect(show).toBeEnabled();
+  // First selection cannot unblank startup.
+  await page.getByRole("button", { name: "2. Together", exact: true }).click();
+  await expect(output.locator(".blackout")).toBeVisible();
+  await expect(show).toBeEnabled(); await show.click();
+  await expect(output.getByText("Together", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Next slide →", exact: true }).click();
+  await expect(output.getByText("Peace", { exact: true })).toBeVisible();
+  // Rapid destination requests must settle on the newest selection.
+  await page.evaluate(() => {
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>("button")];
+    buttons.find((button) => button.textContent?.trim() === "2. Together")!.click();
+    buttons.find((button) => button.textContent?.trim() === "1. Welcome")!.click();
+  });
+  await expect(output.getByText("Welcome", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "3. Peace", exact: true }).click();
+  await expect(output.getByText("Peace", { exact: true })).toBeVisible();
+  await previewOnly.check();
+  await page.getByRole("button", { name: "1. Welcome", exact: true }).click();
+  await expect(page.locator(".mp-preview-frame")).toContainText("Welcome");
+  await expect(output.getByText("Peace", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Return to live", exact: true }).click();
+  await expect(previewOnly).not.toBeChecked();
+  await expect(page.locator(".mp-preview-frame")).toContainText("Peace");
+  // Arrow keys use direct navigation outside composite section controls.
+  await page.locator(".mp-title h1").click(); await page.keyboard.press("ArrowLeft");
+  await expect(output.getByText("Together", { exact: true })).toBeVisible();
+  await previewOnly.check();
+  await page.getByRole("button", { name: "1. Welcome", exact: true }).click();
+  await expect(show).toBeEnabled(); await show.click();
+  await expect(output.getByText("Welcome", { exact: true })).toBeVisible();
+  await expect(previewOnly).toBeChecked();
+  await previewOnly.uncheck();
+  await page.getByRole("button", { name: "Blank screen", exact: true }).click();
+  await expect(output.locator(".blackout")).toBeVisible();
+  await page.getByRole("button", { name: "3. Peace", exact: true }).click();
+  await expect(page.locator(".mp-preview-frame")).toContainText("Peace");
+  await expect(output.locator(".blackout")).toBeVisible();
+  await expect(show).toBeEnabled(); await show.click();
+  await expect(output.getByText("Peace", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "End presentation", exact: true }).click();
+  await expect.poll(() => output.isClosed()).toBe(true);
 });

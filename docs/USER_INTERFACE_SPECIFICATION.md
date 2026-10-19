@@ -34,7 +34,7 @@ These are workspaces and transitions, not a compulsory wizard. A returning opera
 
 Application navigation must expose Services and Library. Settings must open directly as a dialog. A selected service must expose Prepare and Present as clear workspace choices. The service name must remain visible in both workspaces.
 
-When a presentation exists outside Present, a persistent output indicator must offer Return to presentation and immediate Blank. Returning to Prepare must not stop or reveal output. Active-session edits are staged separately from the committed presentation snapshot. The user confirmed Preview → Show slide and staged edits with explicit Apply on 17 October 2026. Editing, saving and Apply must not reveal a slide; only Show slide does so. See section 16.7 for the staged-apply contract.
+When a presentation exists outside Present, a persistent output indicator must offer Return to presentation and immediate Blank. Returning to Prepare must not stop or reveal output. Active-session edits are staged separately from the committed presentation snapshot. The user superseded preview-first navigation on 19 October 2026: direct one-click navigation is the default while live, with an optional Preview only mode on the same Present screen. Editing, saving and Apply never reveal a slide. Apply enters Preview only; the corrected content needs an explicit Show slide. See section 16.7 for the staged-apply contract.
 
 ## 3. Services workspace
 
@@ -218,9 +218,9 @@ At 1280 × 720, budget approximately 56 px for the presenter header and 80 px fo
 
 ### 6.2 Browsing, focus and activation
 
-Expanding a service item, moving keyboard focus, switching song-navigation detail views, opening notes and scrolling are browsing actions. They must not change the runtime cursor or congregation content. Clicking a destination slide, activating a labelled section button, or pressing Previous/Next changes preview selection only. Show slide is the presentation action in both black and live states. Give these controls clear destination labels and show the current live-navigation policy nearby.
+Expanding a service item, moving keyboard focus, switching song-navigation detail views, opening notes and scrolling are browsing actions. They must not change the runtime cursor or congregation content. In Direct control while live, clicking a destination slide, activating a labelled section button, or pressing Previous/Next shows the selected destination after preparation. In Preview only, these actions change preview alone. When black, hidden, disconnected or newly started, navigation cannot reveal output; Show slide remains explicit. Give these controls clear destination labels and show the current live-navigation policy nearby.
 
-Expanding another song may show its sections without replacing the active song cursor. Keep the active item marked and offer Return to current song. That action restores the navigation/preview view of the runtime-selected song without sending a reveal or restarting its page. If requested and acknowledged destinations differ, retain their separate labels. Activating a destination in that song changes the preview cursor only; browsing it alone does not. Neither action changes output before Show slide. Do not use an entire expandable item row as an immediate-live activation target.
+Expanding another song may show its sections without replacing the active song cursor. Keep the active item marked and offer Return to current song. That action restores the navigation/preview view of the runtime-selected song without sending a reveal or restarting its page. If requested and acknowledged destinations differ, retain their separate labels. Activating a destination follows the visible Direct control / Preview only policy; browsing alone never reveals anything. Do not use an entire expandable item row as an immediate-live activation target.
 
 A song with a single section may omit redundant navigation detail controls when the destinations are identical. Slide sets use page navigation without fabricated Verse/Chorus controls. Non-presenting headings may be inspected but cannot be activated for output.
 
@@ -246,7 +246,7 @@ Previous and Next follow the active service arrangement, including repeated sect
 
 At the first slide of the current effective navigation path, disable Previous; a temporary section with a captured prior cursor follows section 7.3 instead. At the last slide, show End of service and disable Next. Do not repeat the final slide as Next, loop automatically, stop automatically or blank automatically.
 
-Confirmed behaviour: Preview first, then Show slide. Previous/Next, direct section buttons and individual pages select the preview without changing congregation content, whether live or black. The explicit Show slide action snapshots the selected prepared destination and requests it on output. Keep the last acknowledged live frame visible independently of preview. There is no implicit auto-Show slide or auto-advance after a successful Show slide in this increment. This deliberately replaces 0.6.0 immediate live navigation; update shortcut guidance and tests together.
+Confirmed behaviour, 19 October 2026: Direct control is the default for live navigation. Previous/Next, direct section buttons, repeated occurrences, individual pages and global arrow keys show the selected prepared destination without a second click. Startup/recovery/Blank navigation stays local until explicit Show slide. All controls remain on Present. A compact, labelled Preview only toggle lets an operator inspect any destination without changing output; Show slide reveals it while leaving Preview only enabled. Return to live restores the acknowledged destination and Direct control without a reveal. Turning Preview only off never reveals its current selection by itself. Apply enters Preview only and keeps acknowledged live words unchanged. Media preparation, hidden/disconnected guards, latest-request identity and black intent must apply equally to direct and explicit reveal. Blank, mode changes, Apply and session changes cancel queued direct reveals. The last acknowledged frame remains distinct from the requested destination.
 
 ## 7. Song section navigation
 
@@ -534,14 +534,14 @@ Before presenter acceptance, run the operator stress walkthrough in [Live-servic
 
 | Decision | Proposed baseline | Reason |
 | --- | --- | --- |
-| Live selection behaviour | Confirmed: preview selection requires separate Show slide while live or black | Explicit user choice, 17 October 2026 |
+| Live selection behaviour | Confirmed: one-click Direct control while live; optional Preview only on Present; black requires explicit Show slide | Superseding explicit user choice, 19 October 2026 |
 | Repeated-section quick jump | Resolve current, then next occurrence, then first | Gives direct section access while retaining arrangement position |
 | Section outside arrangement | Temporary run with an explicit resume destination | Supports spontaneous worship-leading changes without rewriting service data |
 | Editing during presentation | Confirmed: allow staged edits with explicit Apply; Show slide remains a separate reveal | Explicit user choice, 17 October 2026; replaces proposed immutable-session restriction |
 | Replacing a service copy | Replace snapshot/order; retain item identity, notes and item-level appearance; preview all effects | Corrects a chosen copy without an undefined merge or changes to other services |
 | Output setup toolbar during LIVE | Hide on pointer movement; expose through deliberate accessible setup action | Avoids controls appearing over congregation lyrics while retaining fullscreen fallback |
 
-Preview → Show slide and staged editing with explicit Apply are confirmed. Detailed occurrence/resume rules, source replacement and output setup access still require concrete design review. Resolve those interaction choices before implementing behaviour changes. Layout, information hierarchy and existing safety requirements can be reviewed independently. This specification does not authorise deployment or claim implementation acceptance.
+Direct control with optional Preview only (19 October 2026) and staged editing with explicit Apply are confirmed. Detailed occurrence/resume rules, source replacement and output setup access still require concrete design review. Resolve those interaction choices before implementing behaviour changes. Layout, information hierarchy and existing safety requirements can be reviewed independently. This specification does not authorise deployment or claim implementation acceptance.
 
 ## 16. UX implementation contract
 
@@ -553,7 +553,7 @@ The design remains a draft. Requirements marked Must are intended acceptance req
 
 | Delivery group | Included scope | Acceptance treatment |
 | --- | --- | --- |
-| Core redesign | Service landing, Prepare/editor/add flow, basic manual song creation, bilingual pages, song order, persistent saves, dedicated Present, direct section/page navigation, setup/recovery, Preview → Show slide, staged Apply and safety controls | Required for the first redesigned workflow; sequence rules remain gated by section 15 |
+| Core redesign | Service landing, Prepare/editor/add flow, basic manual song creation, bilingual pages, song order, persistent saves, dedicated Present, direct section/page navigation, setup/recovery, Direct control with optional Preview only, staged Apply and safety controls | Required for the first redesigned workflow; sequence rules remain gated by section 15 |
 | Authoring enhancements | Whole-song paste staging, expanded lyric search/duplicate suggestions, structural duplication/moving pages, before/after source replacement, focused review route | Separate increments with their own applicable scenarios; omission must be documented, not presented as core completion |
 | Deferred parity/product work | Durable draft recovery, Trash, formal review signatures, portable service packages/merge, printing, No Words, automatic public overlays, reporting | Not implied by this redesign; preserve the parity inventory and scope separately |
 

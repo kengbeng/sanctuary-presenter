@@ -215,3 +215,27 @@ Local 0.7.0-rc.2 with unpublished Show slide wording, Prepare routing fix and wi
 While the server remained stopped, Present opened a new black output window from cache. It was moved to Acer B247Y and kept windowed. The user confirmed black output and a usable operator. Show slide acknowledged corrected Verse 1. Selecting Chorus changed preview only, and the user confirmed the Acer retained corrected Verse 1. Blank was acknowledged. Selecting Bridge page one changed preview to page 5/7 while the user confirmed the Acer went black and stayed black. End returned the operator to connection setup and closed the output session. The local preview server was restarted afterward.
 
 Pass for this Safari profile and local origin: browser cold startup with the app origin unreachable, persisted service content, fresh black output, deliberate reveal, preview separation and blank navigation. The Mac’s internet/Wi-Fi remained enabled; this was not a full network-disconnected test or a hosted GitHub Pages cold restart. The rehearsal used synthetic text, not imported audio/video/images or a full real service. Those broader offline acceptance cases remain open.
+
+
+### Hosted Safari offline cold restart — 18 October 2026
+
+After hosted Safari visibly activated 0.7.0-rc.3, reported App shell cached · offline ready, retained “REHEARSAL — section navigation”, and exported a full backup, the user followed the requested procedure: disconnect internet (Wi-Fi and Ethernet if connected), quit Safari completely, reopen https://kengbeng.github.io/sanctuary-presenter/, open the saved rehearsal service, then reconnect. The user reported “App and saved service opened offline.”
+
+Pass, user-confirmed, for cached hosted application startup and saved-service access after a full network-disconnected Safari restart in this profile. Network state and restart were performed/reported by the user, not instrumented by the agent. This does not separately establish physical output, imported media playback, editing persistence or a complete service while fully disconnected. Local-origin-unavailable output and automated hosted offline output evidence remain separately scoped above and in VERIFICATION.md.
+
+
+### Hosted synthetic media rehearsal — 19 October 2026
+
+Prepared synthetic files locally: REHEARSAL-image.png and REHEARSAL-video.mp4 (960×540, 12 seconds, moving bar/timer, silent). PNG generated with Pillow; MP4 converted by macOS avconvert from generated MJPEG frames. Imported both through hosted Safari's Library media picker, which confirmed local storage and parsed the video dimensions/duration. Files remain in /private/tmp/sanctuary-media-rehearsal and hosted-origin IndexedDB; no user media was used.
+
+Created a separate hosted service “REHEARSAL — local image and video” with the image first and video second. Present opened a new windowed black output with image preview ready and Show slide enabled. The output Window menu offered Move to Built-in Retina Display, indicating it was already on an external display; user confirmation of physical Acer placement is pending. No reveal or offline media pass has been claimed. Session active for manual checks.
+
+
+Media follow-up: user confirmed black output physically visible on Acer while Mac operator usable. Show slide revealed the local PNG; Next preview selected the MP4 at 2/2. The user confirmed the Acer retained the LOCAL IMAGE/teal-border image during video preview. A deliberate Show slide then revealed the MP4, and the user confirmed the yellow bar moving and timer changing. Blank received a black acknowledgement; Previous preview selected the PNG. Physical black persistence at this final boundary is pending. These checks were connected-network rehearsal; no fully disconnected media result is claimed yet.
+
+
+The user confirmed the video disappeared immediately and the Acer stayed black while the PNG was selected in preview. End returned OUTPUT STOPPED. A full backup including the new media/service was exported before the disconnected run.
+
+For the fully disconnected check, the user was instructed to disconnect internet, quit/reopen Safari, open the hosted app and “REHEARSAL — local image and video”, start windowed output on Acer, verify black startup, show the PNG, preview then show the MP4 with motion, Blank and End, then reconnect. The user reported “All passed offline, including moving video and Blank.” This is user-confirmed evidence for hosted cold startup, persisted imported synthetic image/MP4, new black output, deliberate media reveal/playback and blanking on Safari/Acer with internet disconnected. Network disconnection, physical observations and final closure during that run were user-performed/reported, not instrumented by the agent.
+
+The two-item synthetic-media offline rehearsal passes for this profile/setup. It does not certify other codecs, audio (the sample is silent), long/large media, real-service assets, storage eviction, every browser or fullscreen reliability. Labelled practice content and source files remain available; no user content was uploaded.

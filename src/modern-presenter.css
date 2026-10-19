@@ -369,3 +369,8 @@
     max-width: 100%;
   }
 }
+
+.mp-navigation-mode { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:8px 22px; border-bottom:1px solid #3b4b59; background:#172b38; font-size:13px; }
+.mp-navigation-mode label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.mp-navigation-mode span { flex:1; min-width:170px; color:#d4e0e8; }
+.mp-navigation-mode button { padding:5px 10px; }
