@@ -1603,8 +1603,9 @@ function Operator() {
     >
       <header>
         <div className="brand">
-          ✦ <strong>Sanctuary</strong>
-          <span>Presenter / v2 · {__APP_VERSION__}</span>
+          <img src={`${import.meta.env.BASE_URL}sanctuary-icon-192.png`} alt="" width="32" height="32" />
+          <strong>Sanctuary Presenter</strong>
+          <span>v2 · {__APP_VERSION__}</span>
         </div>
         <nav className="tabs" aria-label="Workspace">
           <button
@@ -1685,6 +1686,7 @@ function Operator() {
           selectedIndex={slide}
           liveFrame={liveFrame?.page}
           previousVersion={!!liveFrame && liveFrame.version !== version.current}
+          pendingReveal={!!directRequest || isPreparing}
           state={outputLabel}
           ready={
             pinsReady &&

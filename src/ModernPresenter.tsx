@@ -12,6 +12,7 @@ export function ModernPresenter(props: {
   selectedIndex: number;
   liveFrame?: Page;
   previousVersion: boolean;
+  pendingReveal: boolean;
   state: string;
   ready: boolean;
   previewError: string;
@@ -43,6 +44,8 @@ export function ModernPresenter(props: {
   const selected = props.frames[props.selectedIndex];
   const [browsed, setBrowsed] = useState<string>();
   const [notes, setNotes] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const guide = useRef<HTMLDialogElement>(null);
   const modal = useRef<HTMLDialogElement>(null);
   const item = props.order?.items.find(
     (item) => item.id === (browsed ?? selected?.itemId),
@@ -66,6 +69,15 @@ export function ModernPresenter(props: {
       focused?.focus();
     };
   }, [props.setupOpen]);
+  useEffect(() => {
+    if (!guideOpen) return;
+    const focused = document.activeElement as HTMLElement | null;
+    guide.current?.showModal();
+    return () => {
+      guide.current?.close();
+      focused?.focus();
+    };
+  }, [guideOpen]);
   function focusArrows(event: React.KeyboardEvent) {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
@@ -89,6 +101,9 @@ export function ModernPresenter(props: {
   const canReveal =
     props.ready && ["OUTPUT BLACK", "LIVE", "PREPARING"].includes(props.state);
   const next = props.frames[props.selectedIndex + 1];
+  const directLive = !props.previewOnly && ["LIVE", "PREPARING"].includes(props.state);
+  const selectedIsLive = !!selected && selected.id === props.liveFrame?.id &&
+    !props.previousVersion && !props.pendingReveal;
   return (
     <div className="modern-presenter">
       <div className="mp-title">
@@ -98,6 +113,7 @@ export function ModernPresenter(props: {
         </div>
         <div className="mp-actions">
           <strong role="status">{props.state}</strong>
+          <button onClick={() => setGuideOpen(true)}>How to present</button>
           <button onClick={props.onPrepare}>Prepare / stage edits</button>
           <button onClick={() => props.onSetup(true)}>Display setup</button>
           {props.sessionActive && (
@@ -110,7 +126,7 @@ export function ModernPresenter(props: {
           )}
         </div>
       </div>
-      <div className="mp-navigation-mode" aria-label="Slide navigation mode">
+      <div className={`mp-navigation-mode${props.previewOnly ? " mp-preview-only" : ""}`} aria-label="Slide navigation mode">
         <strong>{props.previewOnly ? "Preview only" : "Direct control"}</strong>
         <label><input type="checkbox" checked={props.previewOnly}
           onChange={(event) => props.onPreviewOnly(event.target.checked)} /> Preview only</label>
@@ -208,11 +224,11 @@ export function ModernPresenter(props: {
                 </button>
               ))}
         </aside>
-        <section className="mp-preview-column">
+        <section className={`mp-preview-column${props.previewOnly ? " mp-preview-only" : ""}`}>
           <div className="mp-preview-heading">
             <div>
               <span className="eyebrow">
-                {props.previewOnly || props.state !== "LIVE" ? "SELECTED PREVIEW" : "DIRECT SELECTION"}
+                {props.pendingReveal ? "SELECTED · WAITING FOR DISPLAY" : selectedIsLive ? "SELECTED · CONFIRMED LIVE" : "SELECTED PREVIEW"}
               </span>
               <h2>
                 {selected?.itemTitle ||
@@ -287,13 +303,17 @@ export function ModernPresenter(props: {
               <p>Add songs or slides in Prepare.</p>
             )}
           </div>
-          <p className="mp-preview-caption">
+          <p className="mp-preview-caption" role="status">
             {props.previewError ||
-              (props.outputHidden
+              (props.pendingReveal
+                ? "Preparing selected slide or waiting for display confirmation."
+                : props.outputHidden
                 ? "Preview stays local. Bring the output window into view before Show slide."
                 : !props.ready
                 ? "Preparing selected preview or waiting for output…"
-                : props.previewOnly || props.state !== "LIVE"
+                : selectedIsLive
+                  ? "Selected slide matches the last confirmed congregation output."
+                : !directLive
                   ? "Preview ready. Press Show slide to reveal."
                   : "Direct control: selecting a slide changes congregation output.")}
           </p>
@@ -342,7 +362,7 @@ export function ModernPresenter(props: {
             disabled={props.selectedIndex <= 0}
             onClick={() => props.onPreview(props.selectedIndex - 1)}
           >
-            {props.previewOnly || props.state !== "LIVE" ? "← Previous preview" : "← Previous slide"}
+            {directLive ? "← Previous slide" : "← Previous preview"}
           </button>
           <span>
             {props.frames.length ? props.selectedIndex + 1 : 0} /{" "}
@@ -352,7 +372,7 @@ export function ModernPresenter(props: {
             disabled={props.selectedIndex >= props.frames.length - 1}
             onClick={() => props.onPreview(props.selectedIndex + 1)}
           >
-            {props.previewOnly || props.state !== "LIVE" ? "Next preview →" : "Next slide →"}
+            {directLive ? "Next slide →" : "Next preview →"}
           </button>
         </div>
         <div>
@@ -399,6 +419,27 @@ export function ModernPresenter(props: {
           ? "Output page hidden — Show slide is unavailable. Use Display setup to bring the output window into view, then check the second display. Browser visibility does not confirm physical placement."
           : props.notice}
       </div>
+      {guideOpen && (
+        <dialog ref={guide} className="mp-setup-dialog mp-guide-dialog"
+          aria-labelledby="presentation-guide-title"
+          onCancel={(event) => { event.preventDefault(); setGuideOpen(false); }}>
+          <div className="mp-setup-heading">
+            <h2 id="presentation-guide-title">How to present</h2>
+            <button onClick={() => setGuideOpen(false)}>Close guide</button>
+          </div>
+          <ol>
+            <li><strong>Connect display.</strong> Move the congregation window to the second display and check it is black. Windowed output is recommended in Safari.</li>
+            <li><strong>Show the first slide.</strong> Select it, then press Show slide.</li>
+            <li><strong>Navigate in one click.</strong> While live in Direct control, click a slide, verse, chorus or bridge, or use Previous/Next. Wait for the confirmed live preview.</li>
+            <li><strong>Preview when needed.</strong> Enable Preview only to inspect a selection. Show slide reveals it; Return to live returns to the last confirmed slide without revealing a different slide.</li>
+            <li><strong>Blank screen.</strong> Hide output immediately. Selections stay local while black; press Show slide to resume.</li>
+            <li><strong>Correct words safely.</strong> Save edits in Prepare, then Apply saved changes. Apply enters Preview only; Show slide reveals the correction.</li>
+            <li><strong>End presentation.</strong> Close output when finished. A new session always starts black.</li>
+          </ol>
+          <p>Arrow keys navigate outside song-section controls. S shows the selected slide; B or Escape blanks outside editing fields and dialogs. Escape closes this guide.</p>
+          {props.sessionActive && <button className="mp-blank" onClick={props.onBlank}>Blank screen</button>}
+        </dialog>
+      )}
       {props.setupOpen && (
         <dialog
           ref={modal}
