@@ -323,6 +323,9 @@ test("direct control is one-click while live, with optional preview and black-fi
   await expect(output.getByText("Welcome", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "3. Peace", exact: true }).click();
   await expect(output.getByText("Peace", { exact: true })).toBeVisible();
+  // Return to live targets the operator's acknowledged frame, not a paint that
+  // has not yet been confirmed across the output-window channel.
+  await expect(page.locator(".mp-live-frame")).toContainText("Peace");
   await previewOnly.check();
   await page.getByRole("button", { name: "1. Welcome", exact: true }).click();
   await expect(page.locator(".mp-preview-frame")).toContainText("Welcome");
