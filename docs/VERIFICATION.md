@@ -180,3 +180,23 @@ The snapshot's existing captured revision/token supplies the version baseline; a
 TypeScript and ESLint pass; 69 unit tests, 56 Python converter tests and 54 Chromium integration tests pass. Clean npm lockfile installation passes (0 reported audit vulnerabilities). Root and `/sanctuary-presenter/` builds pass PWA path validation. Local version-aware production smoke passes cached offline reload, black output startup, Take/Blank/End and absence of third-party/write requests.
 
 The new real-upgrade fixture verifies 0.6.0/schema-2 → candidate/schema-3, including waiting service-worker activation while live and exact saved-content preservation. Controls remain visible at 640×360 CSS pixels; physical zoom and Safari/second-display rehearsal remain pending. See RELEASE_ACCEPTANCE.md for all 70 UI scenario coverage entries and outstanding gaps. GitHub upload and hosted verification are recorded separately after deployment; these local results do not establish publication.
+
+
+## 0.7.0-rc.3 publication — 18 October 2026
+
+PR #3 (https://github.com/kengbeng/sanctuary-presenter/pull/3) merged the verified 22-file candidate. GitHub Actions run 39091786981 (https://github.com/kengbeng/sanctuary-presenter/actions/runs/39091786981) completed successfully: build 1m31s, deploy 8s. Public release.json confirmed version 0.7.0-rc.3, database schema 3, backup format 5, rehearsal channel. The deployed smoke script passed subpath load, metadata/manifest, cached shell, offline reload/new black output, Show/Blank/Stop and absence of page errors or third-party/write requests in an isolated Chromium profile.
+
+The existing hosted Safari profile exported a full backup before update. It applied the previously waiting rc.2 shell and then the downloaded rc.3 shell; the UI confirmed 0.7.0-rc.3 and offline-ready status, with the saved “REHEARSAL — section navigation” service retained. No output session is active. Full network-disconnected Safari cold restart is awaiting user observation; these deployment/smoke results do not replace it. Four additional generated regression screenshots remain local and were not included in the release.
+
+
+Hosted offline follow-up: the user reported that the app and saved rehearsal service opened after disconnecting internet and fully quitting/reopening Safari according to the supplied procedure, then reconnecting. This is user-confirmed cold-start/service-access evidence for 0.7.0-rc.3, not agent-instrumented network verification or a full imported-media/output rehearsal.
+
+
+19 October: the user reported the full hosted two-item synthetic-media rehearsal passed after disconnecting internet and restarting Safari: cached app/service, black windowed Acer output, PNG reveal, moving MP4, Blank and End. Connected output/preview isolation was separately observed with physical user confirmations. This covers the specific silent synthetic PNG/MP4 setup, not all codecs, audio, real-service media or fullscreen reliability.
+
+
+## Direct control candidate — 19 October 2026 (local, unpublished)
+
+Present now keeps Direct control, Preview only, Return to live, Show slide, navigation and Blank together. Live destination activation uses the existing preparation and acknowledgement flow. Startup/Blank selection stays local; Apply enters Preview only. Mode changes and Blank cancel pending direct reveals.
+
+TypeScript, ESLint and production build pass. All 55 Chromium integration tests pass, including direct live navigation, explicit reveal while black, optional preview isolation, Return to live, arrow navigation, repeated chorus positions and multi-page bridge navigation. These automated results do not establish physical Safari/Acer acceptance of the new interaction. Production remains 0.7.0-rc.3.
