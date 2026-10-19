@@ -512,9 +512,10 @@ function Operator() {
     page: Page;
     frameId: string;
     version: number;
+    extra?: ExtraSection;
   }>();
   const takeRecords = useRef(
-    new Map<string, { page: Page; frameId: string; version: number }>(),
+    new Map<string, { page: Page; frameId: string; version: number; extra?: ExtraSection }>(),
   );
   const takeWarnings = useRef(new Map<string, string[]>());
   const pendingTake = useRef<string | undefined>(undefined);
@@ -1094,6 +1095,7 @@ function Operator() {
         page,
         frameId,
         version: version.current,
+        extra,
       });
       send("SHOW_SLIDE", { frameId });
     } catch (error) {
@@ -1161,7 +1163,8 @@ function Operator() {
     const pending = takeTimer.current !== undefined || !!directRequest;
     clearTakeTimer();
     showGeneration.current++;
-    pendingTake.current = undefined;
+    // A frame already rendered before cancellation can still acknowledge the
+    // unchanged live output. New reveals and Blank replace this frame identity.
     setSending(false);
     setMediaState("Ready");
     if (pending && live.current && cueReady)
@@ -1194,9 +1197,9 @@ function Operator() {
   function returnToLive() {
     cancelNavigationReveal();
     setPreviewOnly(false);
-    const path = loaded ? servicePages(loaded) : framesRef.current;
+    const path = loaded ? presentationPath(loaded, liveFrame?.extra) : framesRef.current;
     const index = path.findIndex((page) => page.id === liveFrame?.page.id);
-    if (index >= 0) { setExtra(undefined); setSlide(index); }
+    if (index >= 0) { setExtra(liveFrame?.extra); setSlide(index); }
     setNotice("Direct control restored. Congregation output is unchanged.");
   }
   useEffect(() => {
