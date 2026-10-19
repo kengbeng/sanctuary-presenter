@@ -48,6 +48,11 @@ header {
   color: #7ed4c1;
   font-size: 24px;
 }
+.brand img {
+  display: block;
+  flex: 0 0 auto;
+  border-radius: 7px;
+}
 .brand strong {
   color: #f0f3f5;
   letter-spacing: -0.7px;

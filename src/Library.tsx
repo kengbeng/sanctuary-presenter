@@ -574,6 +574,16 @@ export function Library({
           </label>
         </div>
       </div>
+      <details className="host-transfer-help">
+        <summary>Moving to another browser or website?</summary>
+        <p>This browser stores your library for <strong>{location.host}</strong>. Other browsers and websites have separate libraries; content does not sync automatically.</p>
+        <ol>
+          <li>On the original site, use <strong>Export full backup</strong> above and keep the ZIP file on your device.</li>
+          <li>Open Library on the destination site and use <strong>Restore backup</strong> above to choose that ZIP file.</li>
+          <li>Restore replaces content on the destination. Export its existing library first if you need to keep it, and stop presentations before restoring.</li>
+        </ol>
+        <p>Backup and restore use a local file. Songs, services and media are not uploaded to a server.</p>
+      </details>
       {migrations.map((record) => (
         <details key={record.id}>
           <summary>v1 conversion report: {record.sourceName}</summary>

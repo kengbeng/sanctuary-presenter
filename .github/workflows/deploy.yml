@@ -26,10 +26,8 @@ jobs:
       - run: npm run lint
       - run: python3 -m unittest discover -s tools/tests
       - run: npm test
-      - run: npm run build
-        env:
-          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
-      - run: npm run validate:pwa
+      - name: Build and validate both hosting targets
+        run: npm run check:hosting
         env:
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
       - run: npx playwright install --with-deps chromium

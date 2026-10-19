@@ -1,4 +1,4 @@
-# Sanctuary Presenter v2 — 0.7.0-rc.4
+# Sanctuary Presenter v2 — 0.7.0-rc.5
 
 A local-first church presentation application for GitHub Pages. Services → Prepare → Review → Present provides independent service copies, bilingual songs, repeated sections, local media and a separate congregation window. This release candidate is for rehearsal. Automated checks do not replace the outstanding Safari/second-display, room-readability and participant checks listed in [release acceptance](docs/RELEASE_ACCEPTANCE.md).
 
@@ -90,3 +90,12 @@ Manual Acer checks covered song sections/repeated choruses, a two-slide bridge, 
 ## Direct navigation
 
 In Present, Direct control shows slide and section destinations in one click while live. Preview only keeps navigation local until Show slide; Return to live restores the acknowledged destination without revealing a new selection. Startup and Blank remain black until an explicit Show slide. Apply saved changes enters Preview only. Rehearse the new interaction on the actual display before service use.
+
+
+## Hosting builds
+
+- `npm run build:pages`: builds and validates the repository subpath into `dist`.
+- `npm run build:cloudflare`: builds and validates `/` into `dist-cloudflare`.
+- `npm run check:hosting`: checks both builds; GitHub Actions uses this before deploying Pages.
+
+Cloudflare Workers settings and the explicit static-assets deployment configuration are documented in [Cloudflare Workers hosting](docs/CLOUDFLARE_WORKERS.md). The release metadata and header identify rc.5, including the matching wordmark, app icons, optional presentation guide and site-transfer help in Library. These local changes require publication and hosted verification.

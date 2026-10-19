@@ -1,7 +1,7 @@
 {
   "name": "sanctuary-presenter",
   "private": true,
-  "version": "0.7.0-rc.4",
+  "version": "0.7.0-rc.5",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -11,7 +11,10 @@
     "test": "vitest run src",
     "validate:pwa": "node scripts/validate.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:pages": "node scripts/build-host.mjs pages",
+    "build:cloudflare": "node scripts/build-host.mjs cloudflare",
+    "check:hosting": "node scripts/build-host.mjs check"
   },
   "dependencies": {
     "dexie": "^4.4.6",

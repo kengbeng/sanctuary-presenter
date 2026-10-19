@@ -1,6 +1,8 @@
-# Release acceptance — 0.7.0-rc.3
+# Release acceptance — 0.7.0-rc.5
 
-Rehearsal candidate, 17 October 2026. This release introduces Services → Prepare → Present, structured song authoring, bilingual search, read-only review, source comparison and explicit staged Apply/Take. It is not a claim that every interface acceptance scenario is complete.
+Local rc.5 candidate: dedicated Pages/Cloudflare builds, dual-path asset/PWA validation, matching wordmark and app icons, clearer selected/confirmed/pending navigation feedback, optional presentation guide and local-library host-transfer help. Publication and physical acceptance of these changes remain pending.
+
+Rehearsal candidate history, 17 October 2026. This release introduces Services → Prepare → Present, structured song authoring, bilingual search, read-only review, source comparison and explicit staged Apply/Take. It is not a claim that every interface acceptance scenario is complete.
 
 Baseline 0.7.0-rc.1 automated verification: TypeScript, ESLint, 69 unit tests, 56 converter tests, 54 Chromium integration tests and repository-subpath PWA validation pass. The browser suite includes an actual 0.6.0 service-worker upgrade: activation waits during presentation, saved schema-2 content survives schema-3 migration, and the new output starts black. Essential controls remain reachable at 1280×720, 1024×768, 640×480 and 640×360 CSS pixels. The smallest viewport is a zoom proxy, not a physical Safari zoom test.
 

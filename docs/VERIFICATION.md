@@ -200,3 +200,21 @@ Hosted offline follow-up: the user reported that the app and saved rehearsal ser
 Present now keeps Direct control, Preview only, Return to live, Show slide, navigation and Blank together. Live destination activation uses the existing preparation and acknowledgement flow. Startup/Blank selection stays local; Apply enters Preview only. Mode changes and Blank cancel pending direct reveals.
 
 TypeScript, ESLint and production build pass. All 55 Chromium integration tests pass, including direct live navigation, explicit reveal while black, optional preview isolation, Return to live, arrow navigation, repeated chorus positions and multi-page bridge navigation. These automated results do not establish physical Safari/Acer acceptance of the new interaction. Production remains 0.7.0-rc.3.
+
+
+## 0.7.0-rc.4 publication — 19 October 2026
+
+PR #4 merged the 12-file candidate; all uploaded files were verified byte for byte against local sources. CI rapid-navigation checks exposed an older slide acknowledgement clearing a newer queued direct destination. Commit 1735ea5 preserves the queued destination. The following CI run exposed a test that asserted Return to live before the operator acknowledged the painted frame; commit 28961e8 waits for that acknowledged-frame contract. The rapid-navigation test passed 20 repeated local runs after each correction. Return to live also retains the context of an extra section outside the planned song order.
+
+Final GitHub Actions run https://github.com/kengbeng/sanctuary-presenter/actions/runs/39193081749 succeeded: build 1m25s, deploy 12s. The public release metadata confirmed rc.4 (schema 3, backup 5). An isolated Chromium hosted smoke check passed repository-subpath load, manifest scope, cached shell and offline reload, new black output, offline one-click navigation, Preview only isolation, Return to live, Show/Blank/End and absence of page errors or third-party/write requests. The existing user's Safari data/session was not modified by that isolated check. Physical acceptance of the rc.4 interaction on Safari/Acer remains pending; earlier rc.3 hardware/offline evidence does not certify the new interaction.
+
+An unrelated Cloudflare Workers check failed; GitHub Pages is the production target and its final Actions deployment succeeded.
+
+
+## 0.7.0-rc.5 preparation — 19 October 2026 (local, unpublished)
+
+Implemented named Pages/Cloudflare builds with separate `dist` and `dist-cloudflare` artifacts. `check:hosting` builds and validates both bases, and is wired into the Pages workflow before artifact publication. Validation checks release metadata, HTML asset paths, manifest identity/scope/start URL, icon existence/dimensions and offline precache membership. Negative checks reject a root/subpath mismatch for either target and incorrect icon dimensions. The explicit Wrangler configuration serves only `dist-cloudflare`; Cloudflare must use `npm run build:cloudflare` as its build command. No Cloudflare deployment is claimed.
+
+The rc.5 candidate also includes matching Sanctuary Presenter typography, generated app/header/favicon/Apple/maskable icons, selected/pending/confirmed presenter feedback, highlighted Preview only mode, optional How to present dialog and local Library host/browser-transfer instructions beside existing backup controls. The generated artwork and prompt are retained in docs/branding.
+
+TypeScript, lint, 69 unit tests and dual-host build validation pass. The browser suite passed 54 checks initially; the sole failure expected the previous header wording. After correcting that assertion to check the matching wordmark and separate release label, the upgrade test passed: all 55 browser scenarios are covered, including help Escape preserving live output and compact presenter layouts. Local isolated Chromium offline smoke checks passed for both `/` (port 4175) and `/sanctuary-presenter/` (port 4174): release/manifest, cached reload, new black output, Show, direct navigation, Preview only isolation, Return to live, Blank and End, with no page errors or third-party/write requests. Screenshots of the header, highlighted presenter, guide and transfer help were inspected. Physical Safari/Acer acceptance and hosted rc.5 verification remain pending.

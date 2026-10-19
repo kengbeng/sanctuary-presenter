@@ -156,8 +156,9 @@ test("schema-2 shell keeps live output while update waits, then upgrades saved d
       page.getByRole("heading", { name: "Your services", exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByText(`Presenter / v2 · ${releaseVersion}`, { exact: true }),
+      page.getByText(`v2 · ${releaseVersion}`, { exact: true }),
     ).toBeVisible();
+    await expect(page.locator(".brand strong")).toHaveText("Sanctuary Presenter");
     await page
       .getByRole("button", { name: "Open Upgrade service", exact: true })
       .click();

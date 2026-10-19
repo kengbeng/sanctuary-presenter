@@ -9,3 +9,6 @@ playwright-report/
 .DS_Store
 
 __pycache__/
+
+dist-cloudflare/
+.wrangler/
