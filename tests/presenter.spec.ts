@@ -312,6 +312,13 @@ test("direct control is one-click while live, with optional preview and black-fi
   await expect(output.locator(".blackout")).toBeVisible();
   await expect(show).toBeEnabled(); await show.click();
   await expect(output.getByText("Together", { exact: true })).toBeVisible();
+  // Opening help and dismissing it with Escape must not blank a live service.
+  await page.getByRole("button", { name: "How to present", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "How to present", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "How to present", exact: true })).toHaveCount(0);
+  await expect(output.getByText("Together", { exact: true })).toBeVisible();
+
   await page.getByRole("button", { name: "Next slide →", exact: true }).click();
   await expect(output.getByText("Peace", { exact: true })).toBeVisible();
   // Rapid destination requests must settle on the newest selection.
