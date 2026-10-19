@@ -24,6 +24,9 @@ export function ModernPresenter(props: {
   hasStagedChanges: boolean;
   stagedTitle?: string;
   onApply: () => void;
+  previewOnly: boolean;
+  onPreviewOnly: (enabled: boolean) => void;
+  onReturnToLive: () => void;
   onPreview: (index: number) => void;
   onSection: (itemId: string, sectionId: string) => void;
   onOccurrence: (itemId: string, occurrence: number, pageId?: string) => void;
@@ -90,7 +93,7 @@ export function ModernPresenter(props: {
     <div className="modern-presenter">
       <div className="mp-title">
         <div>
-          <span className="eyebrow">PRESENT · PREVIEW, THEN SHOW</span>
+          <span className="eyebrow">PRESENT · {props.previewOnly ? "PREVIEW ONLY" : "DIRECT CONTROL"}</span>
           <h1>{props.order?.title ?? "Demo service"}</h1>
         </div>
         <div className="mp-actions">
@@ -106,6 +109,17 @@ export function ModernPresenter(props: {
             </button>
           )}
         </div>
+      </div>
+      <div className="mp-navigation-mode" aria-label="Slide navigation mode">
+        <strong>{props.previewOnly ? "Preview only" : "Direct control"}</strong>
+        <label><input type="checkbox" checked={props.previewOnly}
+          onChange={(event) => props.onPreviewOnly(event.target.checked)} /> Preview only</label>
+        <span>{props.previewOnly
+          ? "Selections stay local. Press Show slide to reveal."
+          : props.state === "LIVE" || props.state === "PREPARING"
+            ? "Click a slide or section to show it immediately."
+            : "Select a slide, then Show slide. Black output stays black."}</span>
+        {props.previewOnly && <button onClick={props.onReturnToLive}>Return to live</button>}
       </div>
       {props.hasStagedChanges && (
         <div className="mp-staged">
@@ -198,7 +212,7 @@ export function ModernPresenter(props: {
           <div className="mp-preview-heading">
             <div>
               <span className="eyebrow">
-                PREVIEW ONLY · NOT YET SHOWN
+                {props.previewOnly || props.state !== "LIVE" ? "SELECTED PREVIEW" : "DIRECT SELECTION"}
               </span>
               <h2>
                 {selected?.itemTitle ||
@@ -279,7 +293,9 @@ export function ModernPresenter(props: {
                 ? "Preview stays local. Bring the output window into view before Show slide."
                 : !props.ready
                 ? "Preparing selected preview or waiting for output…"
-                : "Preview ready. Show slide is a separate action.")}
+                : props.previewOnly || props.state !== "LIVE"
+                  ? "Preview ready. Press Show slide to reveal."
+                  : "Direct control: selecting a slide changes congregation output.")}
           </p>
         </section>
         <aside className="mp-confirmed">
@@ -326,7 +342,7 @@ export function ModernPresenter(props: {
             disabled={props.selectedIndex <= 0}
             onClick={() => props.onPreview(props.selectedIndex - 1)}
           >
-            ← Previous preview
+            {props.previewOnly || props.state !== "LIVE" ? "← Previous preview" : "← Previous slide"}
           </button>
           <span>
             {props.frames.length ? props.selectedIndex + 1 : 0} /{" "}
@@ -336,7 +352,7 @@ export function ModernPresenter(props: {
             disabled={props.selectedIndex >= props.frames.length - 1}
             onClick={() => props.onPreview(props.selectedIndex + 1)}
           >
-            Next preview →
+            {props.previewOnly || props.state !== "LIVE" ? "Next preview →" : "Next slide →"}
           </button>
         </div>
         <div>
