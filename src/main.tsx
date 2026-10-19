@@ -525,8 +525,8 @@ function Operator() {
   const [directRequest, setDirectRequest] = useState<{
     key: string; session: string; generation: number;
   }>();
-  function clearTakeTimer() {
-    setDirectRequest(undefined);
+  function clearTakeTimer(cancelDirect = true) {
+    if (cancelDirect) setDirectRequest(undefined);
     if (takeTimer.current !== undefined) clearTimeout(takeTimer.current);
     takeTimer.current = undefined;
   }
@@ -778,7 +778,9 @@ function Operator() {
             desiredVisible.current &&
             (!modern || m.frameId === pendingTake.current)
           ) {
-            clearTakeTimer();
+            // The acknowledgement may belong to the previous visible frame
+            // while a newer direct destination is still preparing locally.
+            clearTakeTimer(false);
             change("SHOW");
             setMediaState("Ready");
             if (modern && m.frameId) {
