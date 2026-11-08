@@ -1,3 +1,4 @@
+import { AppInstallControl } from "./AppInstallControl";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { createRoot } from "react-dom/client";
@@ -515,15 +516,22 @@ function Operator() {
     extra?: ExtraSection;
   }>();
   const takeRecords = useRef(
-    new Map<string, { page: Page; frameId: string; version: number; extra?: ExtraSection }>(),
+    new Map<
+      string,
+      { page: Page; frameId: string; version: number; extra?: ExtraSection }
+    >(),
   );
   const takeWarnings = useRef(new Map<string, string[]>());
   const pendingTake = useRef<string | undefined>(undefined);
-  const takeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const takeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   const takeTimedOut = useRef(false);
   const [previewOnly, setPreviewOnly] = useState(false);
   const [directRequest, setDirectRequest] = useState<{
-    key: string; session: string; generation: number;
+    key: string;
+    session: string;
+    generation: number;
   }>();
   function clearTakeTimer(cancelDirect = true) {
     if (cancelDirect) setDirectRequest(undefined);
@@ -548,7 +556,10 @@ function Operator() {
   >(location.hash === "#/app" ? "present" : "services");
   const [loaded, setLoaded] = useState<ServiceOrder>();
   const [workspaceGeneration, setWorkspaceGeneration] = useState(0);
-  const [prepareRequest, setPrepareRequest] = useState<{ serviceId: string; token: string }>();
+  const [prepareRequest, setPrepareRequest] = useState<{
+    serviceId: string;
+    token: string;
+  }>();
   const savedServices =
     useLiveQuery(
       () => db.services.orderBy("updatedAt").reverse().toArray(),
@@ -558,6 +569,19 @@ function Operator() {
     serviceId: string;
     token: string;
   }>();
+  const [libraryService, setLibraryService] = useState<{
+    id: string;
+    title: string;
+  }>();
+  const [libraryAddRequest, setLibraryAddRequest] = useState<{
+    serviceId: string;
+    contentId?: string;
+    mediaId?: string;
+    arrangementId?: string;
+    token: string;
+  }>();
+  const [libraryAdding, setLibraryAdding] = useState(false);
+  const [libraryAddMessage, setLibraryAddMessage] = useState("");
   const [setupOpen, setSetupOpen] = useState(true);
 
   const [mediaState, setMediaState] = useState("Bundled text ready");
@@ -629,8 +653,8 @@ function Operator() {
     return () => controller.abort();
   }, [modern, view, previewKey, test]);
   const automaticDisplayAvailable =
-    typeof (window as Window & { getScreenDetails?: unknown }).getScreenDetails ===
-    "function";
+    typeof (window as Window & { getScreenDetails?: unknown })
+      .getScreenDetails === "function";
   const [mode, setMode] = useState(
     automaticDisplayAvailable ? "automatic" : "manual",
   );
@@ -1172,54 +1196,104 @@ function Operator() {
     if (pending && live.current && cueReady)
       send("CANCEL_PENDING", { frameId: crypto.randomUUID() });
   }
-  function selectDestination(index: number, nextExtra: ExtraSection | undefined) {
-    const path = loaded ? presentationPath(loaded, nextExtra) : framesRef.current;
+  function selectDestination(
+    index: number,
+    nextExtra: ExtraSection | undefined,
+  ) {
+    const path = loaded
+      ? presentationPath(loaded, nextExtra)
+      : framesRef.current;
     const next = Math.max(0, Math.min(path.length - 1, index));
-    const direct = modern && !test && !previewOnly && desiredVisible.current &&
-      phaseRef.current === "LIVE" && !blankIntent.current && !applying &&
+    const direct =
+      modern &&
+      !test &&
+      !previewOnly &&
+      desiredVisible.current &&
+      phaseRef.current === "LIVE" &&
+      !blankIntent.current &&
+      !applying &&
       outputVisibleRef.current !== false;
     if (modern) cancelNavigationReveal();
     setExtra(nextExtra);
     setSlide(next);
     if (direct && path[next])
-      setDirectRequest({ key: JSON.stringify(path[next]), session: session.current,
-        generation: showGeneration.current });
-    else if (!modern && desiredVisible.current &&
-      ["LIVE", "BLANKED", "READY_BLANK"].includes(phaseRef.current))
+      setDirectRequest({
+        key: JSON.stringify(path[next]),
+        session: session.current,
+        generation: showGeneration.current,
+      });
+    else if (
+      !modern &&
+      desiredVisible.current &&
+      ["LIVE", "BLANKED", "READY_BLANK"].includes(phaseRef.current)
+    )
       void transmit(next);
   }
-  function navigate(n: number) { selectDestination(n, extra); }
+  function navigate(n: number) {
+    selectDestination(n, extra);
+  }
   function changePreviewMode(enabled: boolean) {
     cancelNavigationReveal();
     setPreviewOnly(enabled);
-    setNotice(enabled
-      ? "Preview only: select any slide without changing congregation output. Press Show slide when ready, or Return to live."
-      : "Direct control: selecting a slide shows it while live. Black output stays black until Show slide.");
+    setNotice(
+      enabled
+        ? "Preview only: select any slide without changing congregation output. Press Show slide when ready, or Return to live."
+        : "Direct control: selecting a slide shows it while live. Black output stays black until Show slide.",
+    );
   }
   function returnToLive() {
     cancelNavigationReveal();
     setPreviewOnly(false);
-    const path = loaded ? presentationPath(loaded, liveFrame?.extra) : framesRef.current;
+    const path = loaded
+      ? presentationPath(loaded, liveFrame?.extra)
+      : framesRef.current;
     const index = path.findIndex((page) => page.id === liveFrame?.page.id);
-    if (index >= 0) { setExtra(liveFrame?.extra); setSlide(index); }
+    if (index >= 0) {
+      setExtra(liveFrame?.extra);
+      setSlide(index);
+    }
     setNotice("Direct control restored. Congregation output is unchanged.");
   }
   useEffect(() => {
     if (!directRequest) return;
-    if (directRequest.session !== session.current ||
-      directRequest.generation !== showGeneration.current || previewOnly ||
-      view !== "present" || !desiredVisible.current || outputVisible === false ||
-      applying || phase === "DISCONNECTED") {
+    if (
+      directRequest.session !== session.current ||
+      directRequest.generation !== showGeneration.current ||
+      previewOnly ||
+      view !== "present" ||
+      !desiredVisible.current ||
+      outputVisible === false ||
+      applying ||
+      phase === "DISCONNECTED"
+    ) {
       setDirectRequest(undefined);
       return;
     }
-    if (preparedPreview?.key === directRequest.key && previewKey === directRequest.key &&
-      pinsReady && cueReady && !blankPending && !previewError) {
+    if (
+      preparedPreview?.key === directRequest.key &&
+      previewKey === directRequest.key &&
+      pinsReady &&
+      cueReady &&
+      !blankPending &&
+      !previewError
+    ) {
       setDirectRequest(undefined);
       show();
     } else if (previewError) setDirectRequest(undefined);
-  }, [directRequest, preparedPreview, previewKey, previewOnly, view, outputVisible,
-    applying, phase, pinsReady, cueReady, blankPending, previewError]);
+  }, [
+    directRequest,
+    preparedPreview,
+    previewKey,
+    previewOnly,
+    view,
+    outputVisible,
+    applying,
+    phase,
+    pinsReady,
+    cueReady,
+    blankPending,
+    previewError,
+  ]);
   function loadService(order: ServiceOrder) {
     setExtra(undefined);
     setStagedId(undefined);
@@ -1461,19 +1535,19 @@ function Operator() {
           phase !== "DISCONNECTED" &&
           outputVisible === false
         ? "OUTPUT HIDDEN"
-      : isPreparing
-        ? "PREPARING"
-        : phase === "LIVE"
-          ? "LIVE"
-          : ["READY_BLANK", "BLANKED"].includes(phase)
-            ? "OUTPUT BLACK"
-            : phase === "DISCONNECTED"
-              ? "DISCONNECTED"
-              : phase === "STOPPED"
-                ? "OUTPUT STOPPED"
-                : phase === "IDLE"
-                  ? "OUTPUT CLOSED"
-                  : "CONNECTING";
+        : isPreparing
+          ? "PREPARING"
+          : phase === "LIVE"
+            ? "LIVE"
+            : ["READY_BLANK", "BLANKED"].includes(phase)
+              ? "OUTPUT BLACK"
+              : phase === "DISCONNECTED"
+                ? "DISCONNECTED"
+                : phase === "STOPPED"
+                  ? "OUTPUT STOPPED"
+                  : phase === "IDLE"
+                    ? "OUTPUT CLOSED"
+                    : "CONNECTING";
   const displaySetup = (
     <section className="setup" aria-label="Output setup">
       <details
@@ -1500,7 +1574,10 @@ function Operator() {
           Display positioning
           <select value={mode} onChange={(e) => setMode(e.target.value)}>
             <option value="automatic" disabled={!automaticDisplayAvailable}>
-              Automatic{automaticDisplayAvailable ? "" : " · unavailable in this browser"}
+              Automatic
+              {automaticDisplayAvailable
+                ? ""
+                : " · unavailable in this browser"}
             </option>
             <option value="manual">Manual</option>
           </select>
@@ -1589,8 +1666,8 @@ function Operator() {
       <p className="muted">
         Preview and connection status cannot confirm which desktop or app the
         physical display is showing. If it shows the desktop or another app,
-        Blank, reposition the output, and verify it before Show slide. Native window
-        fullscreen is not reported by the webpage fullscreen indicator.
+        Blank, reposition the output, and verify it before Show slide. Native
+        window fullscreen is not reported by the webpage fullscreen indicator.
       </p>
     </section>
   );
@@ -1603,36 +1680,62 @@ function Operator() {
     >
       <header>
         <div className="brand">
-          <img src={`${import.meta.env.BASE_URL}sanctuary-icon-192.png`} alt="" width="32" height="32" />
+          <img
+            src={`${import.meta.env.BASE_URL}sanctuary-icon-192.png`}
+            alt=""
+            width="32"
+            height="32"
+          />
           <strong>Sanctuary Presenter</strong>
           <span>v2 · {__APP_VERSION__}</span>
         </div>
-        <nav className="tabs" aria-label="Workspace">
-          <button
-            aria-pressed={view === "services"}
-            onClick={() => setView("services")}
-          >
-            Services
-          </button>
-          <button
-            aria-pressed={view === "prepare" || view === "review"}
-            onClick={() => setView("prepare")}
-          >
-            Prepare
-          </button>
-          <button
-            aria-pressed={view === "present"}
-            onClick={() => setView("present")}
-          >
-            Present
-          </button>
-          <button
-            aria-pressed={view === "library"}
-            onClick={() => setView("library")}
-          >
-            {location.hash === "#/app" ? "Library & planner" : "Library"}
-          </button>
-        </nav>
+        <div className="header-actions">
+          <AppInstallControl
+            update={update}
+            updating={applyingUpdate}
+            locked={live.current || otherActive}
+            onUpdate={() => {
+              if (live.current || otherActive || applyingUpdate) return;
+              setApplyingUpdate(true);
+              void applySafeUpdate(async () => {
+                await sw.current?.(true);
+              }).catch((error) => {
+                setNotice(
+                  error instanceof Error
+                    ? error.message
+                    : "Update could not be applied.",
+                );
+                setApplyingUpdate(false);
+              });
+            }}
+          />
+          <nav className="tabs" aria-label="Workspace">
+            <button
+              aria-pressed={view === "services"}
+              onClick={() => setView("services")}
+            >
+              Services
+            </button>
+            <button
+              aria-pressed={view === "prepare" || view === "review"}
+              onClick={() => setView("prepare")}
+            >
+              Prepare
+            </button>
+            <button
+              aria-pressed={view === "present"}
+              onClick={() => setView("present")}
+            >
+              Present
+            </button>
+            <button
+              aria-pressed={view === "library"}
+              onClick={() => setView("library")}
+            >
+              {location.hash === "#/app" ? "Library & planner" : "Library"}
+            </button>
+          </nav>
+        </div>
       </header>
       <div
         className="service-pane"
@@ -1650,6 +1753,14 @@ function Operator() {
           onMode={setView}
           prepareRequest={prepareRequest}
           onLibrary={() => setView("library")}
+          onCurrentService={setLibraryService}
+          libraryAddRequest={libraryAddRequest}
+          onLibraryAddResult={(error) => {
+            setLibraryAdding(false);
+            setLibraryAddRequest(undefined);
+            setLibraryAddMessage(error ?? "");
+            if (!error) setView("prepare");
+          }}
           sessionActive={sessionActive}
           onBlank={blankOutput}
           onSavingChange={setWorkspaceSaving}
@@ -1668,6 +1779,16 @@ function Operator() {
         <Library
           showPlanner={location.hash === "#/app"}
           request={libraryRequest}
+          currentService={libraryService}
+          onBackToService={() => setView("prepare")}
+          adding={libraryAdding || workspaceSaving}
+          addMessage={libraryAddMessage}
+          onAddToService={(selection) => {
+            if (libraryAdding || workspaceSaving) return;
+            setLibraryAdding(true);
+            setLibraryAddMessage("Adding a separate copy to the service…");
+            setLibraryAddRequest({ ...selection, token: crypto.randomUUID() });
+          }}
           onPresent={loadService}
           onRestored={() => {
             setWorkspaceGeneration((value) => value + 1);
@@ -1676,7 +1797,9 @@ function Operator() {
             setSlide(0);
             setTest(false);
           }}
-          canRestore={!live.current && !otherActive}
+          canRestore={
+            !live.current && !otherActive && !libraryAdding && !workspaceSaving
+          }
         />
       </div>
       {modern && view === "present" && (
@@ -1731,9 +1854,16 @@ function Operator() {
           onOccurrence={(itemId, occurrence, pageId) => {
             if (!loaded) return;
             selectDestination(
-              Math.max(0, servicePages(loaded).findIndex((page) =>
-                page.itemId === itemId && page.occurrenceIndex === occurrence &&
-                (!pageId || page.sourcePageId === pageId))), undefined,
+              Math.max(
+                0,
+                servicePages(loaded).findIndex(
+                  (page) =>
+                    page.itemId === itemId &&
+                    page.occurrenceIndex === occurrence &&
+                    (!pageId || page.sourcePageId === pageId),
+                ),
+              ),
+              undefined,
             );
           }}
           onTake={show}
@@ -1741,7 +1871,11 @@ function Operator() {
           onStart={start}
           onStop={stop}
           onPrepare={() => {
-            if (loaded) setPrepareRequest({ serviceId: loaded.id, token: crypto.randomUUID() });
+            if (loaded)
+              setPrepareRequest({
+                serviceId: loaded.id,
+                token: crypto.randomUUID(),
+              });
             setView("prepare");
           }}
           setupOpen={setupOpen}
@@ -1903,7 +2037,10 @@ function Operator() {
         hidden={
           (modern && view === "present") ||
           (!sessionActive &&
-            (view === "services" || view === "prepare" || view === "review"))
+            (view === "services" ||
+              view === "prepare" ||
+              view === "review" ||
+              (modern && view === "library")))
         }
       >
         <div
@@ -2001,30 +2138,6 @@ function Operator() {
             : "○ Offline cache not yet confirmed"}
         </span>
         <span>Keys: ← → navigate · B blank · S show slide · Esc blank</span>
-        {update && (
-          <button
-            disabled={live.current || otherActive || applyingUpdate}
-            onClick={() => {
-              if (live.current || otherActive || applyingUpdate) return;
-              setApplyingUpdate(true);
-              void applySafeUpdate(async () => {
-                await sw.current?.(true);
-              })
-                .catch((error) =>
-                  setNotice(
-                    error instanceof Error
-                      ? error.message
-                      : "Update could not be applied.",
-                  ),
-                )
-                .finally(() => setApplyingUpdate(false));
-            }}
-          >
-            {applyingUpdate
-              ? "Applying update — keep outputs stopped until reload"
-              : "Apply update after stopping all output windows"}
-          </button>
-        )}
       </footer>
     </div>
   );

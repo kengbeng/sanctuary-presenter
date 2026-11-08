@@ -1,3 +1,7 @@
+import "./library-navigation.css";
+import { EditorMenu, ReorderNavigation } from "./EditorNavigation";
+import { moveSection, moveSlide } from "./authoring";
+import { LibraryDetails } from "./LibraryDetails";
 import { PasteLyrics } from "./PasteLyrics";
 import { SectionTools, SlideTools } from "./StructureTools";
 import {
@@ -7,7 +11,7 @@ import {
   similarSongs,
 } from "./search";
 import { SearchFilters } from "./SearchFilters";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "./repository";
 import { exportBackup, readBackup, restoreBackup, download } from "./backup";
@@ -142,119 +146,198 @@ export function PageEditor({
   media,
   previewPage,
   showPreview = true,
+  focused = false,
+  languages,
 }: {
   page: Page;
   change: (p: Page) => void;
   media: { id: string; title: string; kind?: string }[];
   previewPage?: Page;
   showPreview?: boolean;
+  focused?: boolean;
+  languages?: {
+    primary: string;
+    secondary: string;
+    change: (channel: "primary" | "secondary", language: string) => void;
+  };
 }) {
   return (
-    <>
-      <label>
-        Slide heading
-        <input
-          value={page.title}
-          onChange={(e) => change({ ...page, title: e.target.value })}
-        />
-      </label>
-      <label>
-        Primary text
-        <textarea
-          rows={5}
-          aria-label="Primary text"
-          value={page.text}
-          onChange={(e) => change({ ...page, text: e.target.value })}
-        />
-      </label>
-      <label>
-        Secondary text
-        <textarea
-          rows={3}
-          aria-label="Secondary text"
-          value={page.secondary}
-          onChange={(e) => change({ ...page, secondary: e.target.value })}
-        />
-      </label>
-      <label>
-        Projected language
-        <select
-          aria-label="Projected language"
-          value={page.languageMode ?? "both"}
-          onChange={(e) =>
-            change({
-              ...page,
-              languageMode: e.target.value as Page["languageMode"],
-            })
-          }
-        >
-          <option value="both">Both languages</option>
-          <option value="primary">Primary only</option>
-          <option value="secondary">
-            Secondary (primary fallback if empty)
-          </option>
-        </select>
-      </label>
-      <label>
-        Slide media
-        <select
-          value={page.mediaId || ""}
-          onChange={(e) =>
-            change({ ...page, mediaId: e.target.value || undefined })
-          }
-        >
-          <option value="">None</option>
-          {media.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.title}
-            </option>
-          ))}
-        </select>
-      </label>
-      <details>
-        <summary>Slide design</summary>
+    <div className={focused ? "library-page-editor" : undefined}>
+      {!focused && (
         <label>
-          Slide typography
+          Slide heading
+          <input
+            value={page.title}
+            onChange={(e) => change({ ...page, title: e.target.value })}
+          />
+        </label>
+      )}
+      <div
+        className={
+          focused
+            ? `library-language-fields ${languages && !languages.secondary && !page.secondary ? "library-one-language" : ""}`
+            : undefined
+        }
+      >
+        {(["primary", "secondary"] as const).map((channel) => (
+          <div key={channel}>
+            {languages && (
+              <label>
+                {channel === "primary" ? "First language" : "Second language"}
+                <select
+                  aria-label={`${channel === "primary" ? "First" : "Second"} lyrics language`}
+                  value={languages[channel]}
+                  onChange={(event) =>
+                    languages.change(channel, event.target.value)
+                  }
+                >
+                  {channel === "secondary" && <option value="">None</option>}
+                  {!["", "English", "Chinese"].includes(languages[channel]) && (
+                    <option value={languages[channel]}>
+                      {languages[channel]} (current)
+                    </option>
+                  )}
+                  {channel === "primary" && !languages.primary && (
+                    <option value="">Choose language</option>
+                  )}
+                  <option>English</option>
+                  <option>Chinese</option>
+                </select>
+              </label>
+            )}
+            {(channel === "primary" ||
+              !languages ||
+              languages.secondary ||
+              page.secondary) && (
+              <label>
+                {channel === "primary" ? "Primary text" : "Secondary text"}
+                <textarea
+                  rows={focused ? 6 : channel === "primary" ? 5 : 3}
+                  aria-label={
+                    channel === "primary" ? "Primary text" : "Secondary text"
+                  }
+                  value={channel === "primary" ? page.text : page.secondary}
+                  onChange={(event) =>
+                    change({
+                      ...page,
+                      [channel === "primary" ? "text" : "secondary"]:
+                        event.target.value,
+                    })
+                  }
+                />
+              </label>
+            )}
+          </div>
+        ))}
+      </div>
+      <details
+        className="library-slide-settings"
+        open={focused ? undefined : true}
+      >
+        <summary>
+          {focused ? "Slide appearance" : "Slide settings and appearance"}
+        </summary>
+        {focused && (
+          <label>
+            Slide heading
+            <input
+              value={page.title}
+              onChange={(e) => change({ ...page, title: e.target.value })}
+            />
+          </label>
+        )}
+        <label>
+          Projected language
           <select
-            aria-label="Slide typography"
-            value={page.typographyMode ?? "legacy"}
+            aria-label="Projected language"
+            value={page.languageMode ?? "both"}
             onChange={(e) =>
               change({
                 ...page,
-                typographyMode:
-                  e.target.value === "legacy"
-                    ? undefined
-                    : (e.target.value as "inherit" | "custom"),
+                languageMode: e.target.value as Page["languageMode"],
               })
             }
           >
-            <option value="inherit">Inherit item / service profile</option>
-            <option value="custom">Custom slide override</option>
-            <option value="legacy">Legacy item-over-slide design</option>
+            <option value="both">Both languages</option>
+            <option value="primary">Primary only</option>
+            <option value="secondary">
+              Secondary (primary fallback if empty)
+            </option>
           </select>
         </label>
-        <StyleEditor
-          style={page.style}
-          change={(style) =>
-            change({ ...page, style, typographyMode: "custom" })
-          }
-        />
-      </details>
-      <details>
-        <summary>Slide background</summary>
-        <BackgroundEditor
-          scope="Slide"
-          media={media}
-          value={page.backgroundDesign}
-          change={(backgroundDesign) => change({ ...page, backgroundDesign })}
-        />
+        <label>
+          Slide media
+          <select
+            value={page.mediaId || ""}
+            onChange={(e) =>
+              change({ ...page, mediaId: e.target.value || undefined })
+            }
+          >
+            <option value="">None</option>
+            {media.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        <details>
+          <summary>Slide design</summary>
+          <label>
+            Slide typography
+            <select
+              aria-label="Slide typography"
+              value={page.typographyMode ?? "legacy"}
+              onChange={(e) =>
+                change({
+                  ...page,
+                  typographyMode:
+                    e.target.value === "legacy"
+                      ? undefined
+                      : (e.target.value as "inherit" | "custom"),
+                })
+              }
+            >
+              <option value="inherit">Inherit item / service profile</option>
+              <option value="custom">Custom slide override</option>
+              <option value="legacy">Legacy item-over-slide design</option>
+            </select>
+          </label>
+          <StyleEditor
+            style={page.style}
+            change={(style) =>
+              change({ ...page, style, typographyMode: "custom" })
+            }
+          />
+        </details>
+        <details>
+          <summary>Slide background</summary>
+          <BackgroundEditor
+            scope="Slide"
+            media={media}
+            value={page.backgroundDesign}
+            change={(backgroundDesign) => change({ ...page, backgroundDesign })}
+          />
+        </details>
       </details>
       {showPreview && (
-        <div className="small-preview">
-          <SlideFrame page={previewPage ?? page} />
-        </div>
+        <details
+          open={focused ? undefined : true}
+          className="library-edit-preview"
+        >
+          <summary>Preview selected slide</summary>
+          <div className="small-preview">
+            {!page.text && !page.secondary && !page.title && !page.mediaId ? (
+              <p className="library-preview-empty">
+                Enter lyrics to preview this slide.
+              </p>
+            ) : (
+              <SlideFrame page={previewPage ?? page} />
+            )}
+          </div>
+        </details>
       )}
-    </>
+    </div>
   );
 }
 function reorder<T>(list: T[], index: number, direction: number) {
@@ -291,14 +374,78 @@ export function Library({
   canRestore,
   onRestored,
   showPlanner = true,
+  currentService,
+  onBackToService,
+  onAddToService,
+  adding = false,
+  addMessage = "",
 }: {
   showPlanner?: boolean;
+  currentService?: { id: string; title: string };
+  onBackToService?: () => void;
+  onAddToService?: (selection: {
+    serviceId: string;
+    contentId?: string;
+    mediaId?: string;
+    arrangementId?: string;
+  }) => void;
+  adding?: boolean;
+  addMessage?: string;
   request?: { serviceId: string; token: string };
   onPresent: (service: ServiceOrder) => void;
   canRestore: boolean;
   onRestored: () => void;
 }) {
   const [pasteStaging, setPasteStaging] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [sectionType, setSectionType] = useState("Verse");
+  const [customSectionName, setCustomSectionName] = useState("");
+  const [editorTab, setEditorTab] = useState<"lyrics" | "order" | "details">(
+    "lyrics",
+  );
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<string>();
+  const [importOpen, setImportOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addTarget, setAddTarget] = useState("");
+  const tools = useRef<HTMLDetailsElement>(null);
+  const editor = useRef<HTMLElement>(null);
+  const results = useRef<HTMLDivElement>(null);
+  const importDialog = useRef<HTMLDialogElement>(null);
+  const addDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = importOpen
+      ? importDialog.current
+      : addOpen
+        ? addDialog.current
+        : undefined;
+    if (!dialog) return;
+    const focused = document.activeElement as HTMLElement | null;
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      focused?.focus();
+    };
+  }, [importOpen, addOpen]);
+  function backToSongs() {
+    setDetailOpen(false);
+    requestAnimationFrame(() =>
+      results.current
+        ?.querySelector<HTMLButtonElement>('.library-row[aria-pressed="true"]')
+        ?.focus({ preventScroll: true }),
+    );
+  }
+  async function importFiles(files: File[]) {
+    await run(async () => {
+      for (const file of files) await db.importMedia(file);
+      setTab("media");
+      setImportOpen(false);
+      setDetailOpen(false);
+      setMessage(
+        "Media stored locally. Select an item to inspect it or add it to a service.",
+      );
+    });
+  }
   const restoreAllowed = useRef(canRestore);
   restoreAllowed.current = canRestore;
   const content = useLiveQuery(() => db.content.toArray(), []) ?? [],
@@ -324,6 +471,9 @@ export function Library({
     [storage, setStorage] = useState("Storage usage not yet checked"),
     [sort, setSort] = useState("title");
   useEffect(() => {
+    if (addMessage) setMessage(addMessage);
+  }, [addMessage]);
+  useEffect(() => {
     if (!request) return;
     let cancelled = false;
     void db.services
@@ -341,6 +491,31 @@ export function Library({
     };
   }, [request]);
   const [arrangement, setArrangement] = useState("");
+  useLayoutEffect(() => {
+    const pane = editor.current;
+    if (!pane || showPlanner || !editing) return;
+    const heading = pane.querySelector<HTMLElement>(".library-editor-heading");
+    const toolbar = pane.querySelector<HTMLElement>(".library-slide-toolbar");
+    const measure = () => {
+      pane.style.setProperty(
+        "--library-heading-height",
+        `${heading?.offsetHeight ?? 0}px`,
+      );
+      pane.style.setProperty(
+        "--library-toolbar-height",
+        `${toolbar?.offsetHeight ?? 0}px`,
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    if (heading) observer.observe(heading);
+    if (toolbar) observer.observe(toolbar);
+    measure();
+    return () => observer.disconnect();
+  }, [editing, showPlanner, draft?.id, editorTab]);
+
+  useLayoutEffect(() => {
+    editor.current?.scrollTo({ top: 0 });
+  }, [editing, draft?.id, editorTab]);
   async function run(action: () => Promise<void>) {
     setBusy(true);
     try {
@@ -376,7 +551,20 @@ export function Library({
     )
       return;
     draftGeneration.current++;
-    setDraft(structuredClone(c));
+    setEditorTab("lyrics");
+    const next = structuredClone(c);
+    if (
+      !showPlanner &&
+      !content.some((item) => item.id === c.id) &&
+      next.kind === "song" &&
+      next.sections.length === 1 &&
+      next.sections[0].label === "V1"
+    )
+      next.sections[0].label = "Verse 1";
+    setDraft(next);
+    setEditing(showPlanner || !content.some((item) => item.id === c.id));
+    setDetailOpen(true);
+    editor.current?.scrollTo({ top: 0 });
     setSectionIndex(0);
     setPageIndex(0);
     setDirty(!content.some((item) => item.id === c.id));
@@ -493,12 +681,156 @@ export function Library({
     }
     setMessage("Library item deleted. Existing service copies are preserved.");
   }
+  async function saveDraft() {
+    if (!draft) return;
+    const issues = contentCompatibilityIssues(draft);
+    if (issues.length) throw Error(issues.join(" "));
+    syncAuto(draft);
+    const duplicate = content.find(
+      (c) =>
+        c.id !== draft.id &&
+        (c.title.trim().toLowerCase() === draft.title.trim().toLowerCase() ||
+          (draft.indexNumber && c.indexNumber === draft.indexNumber)),
+    );
+    if (
+      duplicate &&
+      !confirm(`Possible duplicate: “${duplicate.title}”. Save anyway?`)
+    )
+      return;
+    const generation = draftGeneration.current;
+    const saved = await db.saveContent(draft);
+    setDraft((current) =>
+      current?.id === saved.id
+        ? {
+            ...current,
+            revision: saved.revision,
+            revisionToken: saved.revisionToken,
+            updatedAt: saved.updatedAt,
+          }
+        : current,
+    );
+    if (generation === draftGeneration.current) setDirty(false);
+    setMessage(
+      "Library master saved. Existing service copies remain independent.",
+    );
+    if (!showPlanner && generation === draftGeneration.current)
+      setEditing(false);
+  }
+  function cancelEditing() {
+    if (
+      (dirty || pasteStaging) &&
+      !confirm("Discard unsaved library edits and staged lyrics?")
+    )
+      return;
+    const saved = content.find((item) => item.id === draft?.id);
+    draftGeneration.current++;
+    setDraft(saved ? structuredClone(saved) : undefined);
+    setSectionIndex(0);
+    setPageIndex(0);
+    setDirty(false);
+    setPasteStaging(false);
+    setEditing(false);
+    if (!saved) setDetailOpen(false);
+  }
   function itemChange(mutator: (item: ServiceItem) => void) {
     updateService((s) => mutator(s.items[itemIndex]));
   }
+  const sectionManagement =
+    draft && draft.kind === "song" ? (
+      <EditorMenu
+        label={
+          showPlanner
+            ? "Section settings"
+            : `Manage ${draft.sections[sectionIndex]?.label || "section"}`
+        }
+        inline={showPlanner}
+        className="library-section-settings"
+      >
+        {showPlanner && (
+          <label>
+            Section
+            <select
+              value={sectionIndex}
+              onChange={(e) => {
+                setSectionIndex(Number(e.target.value));
+                setPageIndex(0);
+              }}
+            >
+              {draft.sections.map((s, i) => (
+                <option key={s.id} value={i}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <label>
+          Section label
+          <input
+            value={draft.sections[sectionIndex]?.label || ""}
+            onChange={(e) =>
+              update((c) => {
+                c.sections[sectionIndex].label = e.target.value;
+              })
+            }
+          />
+        </label>
+        <div className="actions">
+          <button
+            hidden={!showPlanner}
+            onClick={() => {
+              update((c) => {
+                c.sections.push({
+                  id: id(),
+                  label: "Verse " + (c.sections.length + 1),
+                  pages: [newPage()],
+                });
+                syncAuto(c);
+              });
+              setSectionIndex(draft.sections.length);
+              setPageIndex(0);
+            }}
+          >
+            Add section
+          </button>
+          <button
+            disabled={draft.sections.length < 2}
+            onClick={() => {
+              if (!confirm("Remove this section and its arrangement entries?"))
+                return;
+              update((c) => {
+                const key = c.sections[sectionIndex].id;
+                c.sections.splice(sectionIndex, 1);
+                for (const a of c.arrangements)
+                  a.sectionIds = a.sectionIds.filter((s) => s !== key);
+                syncAuto(c);
+              });
+              setSectionIndex(0);
+              setPageIndex(0);
+            }}
+          >
+            {showPlanner ? "Remove section" : "Delete section"}
+          </button>
+        </div>
+        <SectionTools
+          inline={!showPlanner}
+          content={draft}
+          sectionIndex={sectionIndex}
+          onChange={update}
+          onSelect={(selection) => {
+            setSectionIndex(selection.sectionIndex);
+            setPageIndex(selection.pageIndex);
+          }}
+        />
+      </EditorMenu>
+    ) : null;
   return (
     <main
-      className={"library-workspace" + (showPlanner ? "" : " library-only")}
+      className={
+        "library-workspace" +
+        (showPlanner ? "" : " library-only") +
+        (detailOpen ? " library-detail-open" : "")
+      }
     >
       <div className="library-toolbar">
         <div>
@@ -510,104 +842,307 @@ export function Library({
           <h2>{showPlanner ? "Prepare your service" : "Library"}</h2>
           {!showPlanner && (
             <p className="muted">
-              Maintain reusable content here. Use Prepare to add saved songs or
-              media to your service.
+              Find a song, browse its sections, then edit it or add it to a
+              service.
             </p>
           )}
         </div>
-        <div className="actions">
-          <button
-            disabled={busy}
-            onClick={() =>
-              void run(async () => {
-                download(
-                  await exportBackup(),
-                  `sanctuary-backup-${new Date().toISOString().slice(0, 10)}.zip`,
-                );
-                setMessage(
-                  "Full backup exported. Store it outside this browser.",
-                );
-              })
-            }
-          >
-            Export full backup
-          </button>
-          <label className={"file-button " + (!canRestore ? "disabled" : "")}>
-            Restore backup
-            <input
-              aria-label="Restore backup"
-              type="file"
-              accept=".zip"
-              disabled={!canRestore || busy}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (file)
-                  void run(async () => {
-                    if (!restoreAllowed.current)
-                      throw Error("Stop all presentations before restore.");
-                    const prepared = await readBackup(file);
-                    if (prepared.compatibilityIssues.length) {
-                      setMessage(
-                        `Backup contains ${prepared.compatibilityIssues.length} legacy compatibility issue(s). Originals will be preserved; inspect affected content before editing.`,
-                      );
-                    }
-                    if (
-                      !confirm(
-                        `Replace all local content with this validated backup (${prepared.manifest.counts.content} library items, ${prepared.manifest.counts.services} services)? ${prepared.compatibilityIssues.length ? `${prepared.compatibilityIssues.length} legacy issue(s); originals will be retained. ` : ""}Export your current backup first.`,
-                      )
-                    )
-                      return;
-                    if (!restoreAllowed.current)
-                      throw Error("Stop all presentations before restore.");
-                    await withMaintenance(() => restoreBackup(prepared));
-                    onRestored();
-                    setDraft(undefined);
-                    setDirty(false);
-                    setService(undefined);
-                    setMessage(
-                      `Backup restored. Choose a restored service. Output stays stopped.${prepared.compatibilityIssues.length ? ` ${prepared.compatibilityIssues.length} legacy issue(s) retained; inspect library items before editing.` : ""}`,
-                    );
-                  });
+        {/* Library actions */}
+        {!showPlanner && (
+          <div className="library-primary-actions">
+            {currentService && (
+              <button
+                className="library-return-service"
+                aria-label="Back to service"
+                onClick={onBackToService}
+                title={currentService.title}
+              >
+                Back to service<small>{currentService.title}</small>
+              </button>
+            )}
+            <button
+              onClick={() =>
+                edit(newContent(tab === "slides" ? "slides" : "song"))
+              }
+            >
+              New {tab === "slides" ? "slides" : "song"}
+            </button>
+            <button onClick={() => setImportOpen(true)}>Import</button>
+            <button
+              className="primary"
+              disabled={
+                busy ||
+                adding ||
+                dirty ||
+                pasteStaging ||
+                !services.length ||
+                (tab === "media" ? !selectedMedia : !draft)
+              }
+              onClick={() => {
+                setAddTarget(currentService?.id ?? services[0]?.id ?? "");
+                setAddOpen(true);
               }}
-            />
-          </label>
-        </div>
+            >
+              Add to service
+            </button>
+          </div>
+        )}
       </div>
-      <details className="host-transfer-help">
-        <summary>Moving to another browser or website?</summary>
-        <p>This browser stores your library for <strong>{location.host}</strong>. Other browsers and websites have separate libraries; content does not sync automatically.</p>
-        <ol>
-          <li>On the original site, use <strong>Export full backup</strong> above and keep the ZIP file on your device.</li>
-          <li>Open Library on the destination site and use <strong>Restore backup</strong> above to choose that ZIP file.</li>
-          <li>Restore replaces content on the destination. Export its existing library first if you need to keep it, and stop presentations before restoring.</li>
-        </ol>
-        <p>Backup and restore use a local file. Songs, services and media are not uploaded to a server.</p>
+      <details
+        className="library-tools"
+        ref={tools}
+        open={showPlanner || undefined}
+      >
+        <summary>Library tools</summary>
+        <div className="library-tools-body">
+          <div className="actions">
+            <button
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  download(
+                    await exportBackup(),
+                    `sanctuary-backup-${new Date().toISOString().slice(0, 10)}.zip`,
+                  );
+                  setMessage(
+                    "Full backup exported. Store it outside this browser.",
+                  );
+                })
+              }
+            >
+              Export full backup
+            </button>
+            <label className={"file-button " + (!canRestore ? "disabled" : "")}>
+              Restore backup
+              <input
+                aria-label="Restore backup"
+                type="file"
+                accept=".zip"
+                disabled={!canRestore || busy}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file)
+                    void run(async () => {
+                      if (!restoreAllowed.current)
+                        throw Error("Stop all presentations before restore.");
+                      const prepared = await readBackup(file);
+                      if (prepared.compatibilityIssues.length) {
+                        setMessage(
+                          `Backup contains ${prepared.compatibilityIssues.length} legacy compatibility issue(s). Originals will be preserved; inspect affected content before editing.`,
+                        );
+                      }
+                      if (
+                        !confirm(
+                          `Replace all local content with this validated backup (${prepared.manifest.counts.content} library items, ${prepared.manifest.counts.services} services)? ${prepared.compatibilityIssues.length ? `${prepared.compatibilityIssues.length} legacy issue(s); originals will be retained. ` : ""}Export your current backup first.`,
+                        )
+                      )
+                        return;
+                      if (!restoreAllowed.current)
+                        throw Error("Stop all presentations before restore.");
+                      await withMaintenance(() => restoreBackup(prepared));
+                      onRestored();
+                      setDraft(undefined);
+                      setDirty(false);
+                      setService(undefined);
+                      setMessage(
+                        `Backup restored. Choose a restored service. Output stays stopped.${prepared.compatibilityIssues.length ? ` ${prepared.compatibilityIssues.length} legacy issue(s) retained; inspect library items before editing.` : ""}`,
+                      );
+                    });
+                }}
+              />
+            </label>
+          </div>{" "}
+          <details className="host-transfer-help">
+            <summary>Moving to another browser or website?</summary>
+            <p>
+              This browser stores your library for{" "}
+              <strong>{location.host}</strong>. Other browsers and websites have
+              separate libraries; content does not sync automatically.
+            </p>
+            <ol>
+              <li>
+                On the original site, use <strong>Export full backup</strong>{" "}
+                above and keep the ZIP file on your device.
+              </li>
+              <li>
+                Open Library on the destination site and use{" "}
+                <strong>Restore backup</strong> above to choose that ZIP file.
+              </li>
+              <li>
+                Restore replaces content on the destination. Export its existing
+                library first if you need to keep it, and stop presentations
+                before restoring.
+              </li>
+            </ol>
+            <p>
+              Backup and restore use a local file. Songs, services and media are
+              not uploaded to a server.
+            </p>
+          </details>
+          {migrations.map((record) => (
+            <details key={record.id}>
+              <summary>v1 conversion report: {record.sourceName}</summary>
+              <p>Source SHA-256: {record.sourceHash}</p>
+              <ul>
+                {record.report.map((line, index) => (
+                  <li key={index}>{line}</li>
+                ))}
+              </ul>
+              <button
+                onClick={() =>
+                  download(
+                    new Blob([record.originalJson], {
+                      type: "application/json",
+                    }),
+                    "v1-retained-data.json",
+                  )
+                }
+              >
+                Download retained v1 data
+              </button>
+            </details>
+          ))}
+          <div className="storage-tools">
+            <p>{storage}</p>
+            <button
+              onClick={() =>
+                void run(async () => {
+                  const persisted = await navigator.storage?.persist?.();
+                  const estimate = await navigator.storage?.estimate?.();
+                  const ratio = estimate?.quota
+                    ? (estimate.usage ?? 0) / estimate.quota
+                    : 0;
+                  setStorage(
+                    `${persisted ? "Persistent storage granted" : "Persistence not granted; keep backups"} · ${((estimate?.usage ?? 0) / 1024 / 1024).toFixed(1)} MB used${ratio > 0.8 ? " · Storage almost full! Export a backup and free space." : ""}`,
+                  );
+                })
+              }
+            >
+              Check storage & request persistence
+            </button>
+          </div>{" "}
+        </div>
       </details>
-      {migrations.map((record) => (
-        <details key={record.id}>
-          <summary>v1 conversion report: {record.sourceName}</summary>
-          <p>Source SHA-256: {record.sourceHash}</p>
-          <ul>
-            {record.report.map((line, index) => (
-              <li key={index}>{line}</li>
-            ))}
-          </ul>
-          <button
-            onClick={() =>
-              download(
-                new Blob([record.originalJson], { type: "application/json" }),
-                "v1-retained-data.json",
-              )
-            }
-          >
-            Download retained v1 data
-          </button>
-        </details>
-      ))}
       <p className="library-message" role="status">
         {message}
       </p>
+      {!showPlanner && !services.length && (
+        <p className="library-empty-service">
+          Create a service in Services before adding a song.
+        </p>
+      )}
+      {importOpen && (
+        <dialog
+          ref={importDialog}
+          className="library-dialog"
+          aria-labelledby="library-import-title"
+          onCancel={(e) => {
+            e.preventDefault();
+            setImportOpen(false);
+          }}
+        >
+          <div className="section-heading">
+            <h2 id="library-import-title">Import into Library</h2>
+            <button onClick={() => setImportOpen(false)}>Close import</button>
+          </div>
+          <p>Images and video are stored locally on this device.</p>
+          <label className="file-button">
+            Choose images or video
+            <input
+              aria-label="Import images or video"
+              type="file"
+              multiple
+              accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,video/mp4,video/webm,video/quicktime"
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                void importFiles(files);
+              }}
+            />
+          </label>
+          <h3>Moving an existing song library?</h3>
+          <p>
+            Restore a Sanctuary backup ZIP through Library tools. Restore
+            replaces destination content; export its current backup first.
+          </p>
+          <button
+            onClick={() => {
+              setImportOpen(false);
+              if (tools.current) tools.current.open = true;
+            }}
+          >
+            Open backup tools
+          </button>
+        </dialog>
+      )}
+      {addOpen && (
+        <dialog
+          ref={addDialog}
+          className="library-dialog"
+          aria-labelledby="library-add-title"
+          onCancel={(e) => {
+            e.preventDefault();
+            setAddOpen(false);
+          }}
+        >
+          <div className="section-heading">
+            <h2 id="library-add-title">Add to service</h2>
+            <button onClick={() => setAddOpen(false)}>Cancel</button>
+          </div>
+          <p>
+            Add a separate service copy of{" "}
+            {tab === "media"
+              ? media.find((m) => m.id === selectedMedia)?.title
+              : draft?.title}
+            . Live output stays unchanged.
+          </p>
+          <label>
+            Destination service
+            <select
+              value={addTarget}
+              onChange={(e) => setAddTarget(e.target.value)}
+            >
+              {services.map((order) => (
+                <option key={order.id} value={order.id}>
+                  {order.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          {tab !== "media" && draft?.kind === "song" && (
+            <label>
+              Song order
+              <select
+                value={arrangement}
+                onChange={(e) => setArrangement(e.target.value)}
+              >
+                <option value="">Default song order</option>
+                {draft.arrangements.map((order) => (
+                  <option key={order.id} value={order.id}>
+                    {order.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <button
+            className="primary"
+            disabled={adding || !addTarget}
+            onClick={() => {
+              setAddOpen(false);
+              onAddToService?.({
+                serviceId: addTarget,
+                ...(tab === "media"
+                  ? { mediaId: selectedMedia }
+                  : { contentId: draft?.id, arrangementId: arrangement }),
+              });
+            }}
+          >
+            Add selected item
+          </button>
+        </dialog>
+      )}
       <div className="library-columns">
         <section className="library-list">
           <div className="tabs" role="tablist" aria-label="Content library">
@@ -617,7 +1152,20 @@ export function Library({
                 role="tab"
                 aria-selected={tab === t}
                 onClick={() => {
+                  if (
+                    t !== tab &&
+                    (dirty || pasteStaging) &&
+                    !confirm("Discard unsaved library edits and staged lyrics?")
+                  )
+                    return;
                   setTab(t);
+                  if (t !== tab) {
+                    setDraft(undefined);
+                    setDirty(false);
+                    setPasteStaging(false);
+                    setEditing(false);
+                    setDetailOpen(false);
+                  }
                   setSearchLanguage("");
                   setSearchTag("");
                 }}
@@ -635,16 +1183,20 @@ export function Library({
             />
           </label>
           {tab !== "media" && (
-            <SearchFilters
-              contents={content.filter((content) => content.kind === tab)}
-              language={searchLanguage}
-              tag={searchTag}
-              onLanguage={setSearchLanguage}
-              onTag={setSearchTag}
-            />
-          )}
-          {tab !== "media" ? (
-            <>
+            <details
+              className="library-filters"
+              open={showPlanner || undefined}
+            >
+              <summary>
+                Filters and sort{searchLanguage || searchTag ? " · active" : ""}
+              </summary>
+              <SearchFilters
+                contents={content.filter((content) => content.kind === tab)}
+                language={searchLanguage}
+                tag={searchTag}
+                onLanguage={setSearchLanguage}
+                onTag={setSearchTag}
+              />
               <label>
                 Sort by
                 <select value={sort} onChange={(e) => setSort(e.target.value)}>
@@ -652,16 +1204,28 @@ export function Library({
                   <option value="number">Song number</option>
                 </select>
               </label>
-              <button onClick={() => edit(newContent(tab))}>
+            </details>
+          )}
+          {tab !== "media" ? (
+            <>
+              <button
+                hidden={!showPlanner}
+                onClick={() => edit(newContent(tab))}
+              >
                 New {tab === "song" ? "song" : "slides"}
               </button>
-              <div className="content-results">
+              <div
+                className="content-results"
+                ref={results}
+                aria-label="Library results"
+              >
                 {visible.map((c) => (
                   <button
                     key={c.id}
                     className={
                       "library-row " + (draft?.id === c.id ? "selected" : "")
                     }
+                    aria-pressed={draft?.id === c.id}
                     onClick={() => edit(c)}
                   >
                     <strong>{c.title}</strong>
@@ -716,7 +1280,24 @@ export function Library({
                   m.title.toLowerCase().includes(query.toLowerCase()),
                 )
                 .map((m) => (
-                  <div className="media-row" key={m.id}>
+                  <div
+                    className={
+                      "media-row" + (selectedMedia === m.id ? " selected" : "")
+                    }
+                    key={m.id}
+                  >
+                    {!showPlanner && (
+                      <button
+                        onClick={() => {
+                          setSelectedMedia(m.id);
+                          setDetailOpen(true);
+                          editor.current?.scrollTo({ top: 0 });
+                        }}
+                        aria-pressed={selectedMedia === m.id}
+                      >
+                        Select {m.title}
+                      </button>
+                    )}
                     <MediaThumbnail asset={m} />
                     <strong>{m.title}</strong>
                     <small>
@@ -727,6 +1308,7 @@ export function Library({
                         : ""}
                     </small>
                     <button
+                      hidden={!showPlanner}
                       onClick={() =>
                         void run(async () => {
                           const title = prompt("Media title", m.title);
@@ -740,6 +1322,7 @@ export function Library({
                       Rename
                     </button>
                     <button
+                      hidden={!showPlanner}
                       onClick={() =>
                         void run(async () => {
                           const refs = await db.references(m.id);
@@ -780,576 +1363,1038 @@ export function Library({
                 ))}
             </>
           )}
-          <div className="storage-tools">
-            <p>{storage}</p>
-            <button
-              onClick={() =>
-                void run(async () => {
-                  const persisted = await navigator.storage?.persist?.();
-                  const estimate = await navigator.storage?.estimate?.();
-                  const ratio = estimate?.quota
-                    ? (estimate.usage ?? 0) / estimate.quota
-                    : 0;
-                  setStorage(
-                    `${persisted ? "Persistent storage granted" : "Persistence not granted; keep backups"} · ${((estimate?.usage ?? 0) / 1024 / 1024).toFixed(1)} MB used${ratio > 0.8 ? " · Storage almost full! Export a backup and free space." : ""}`,
-                  );
-                })
-              }
-            >
-              Check storage & request persistence
-            </button>
-          </div>
         </section>
-        <section className="content-editor">
-          <span className="eyebrow">LIBRARY MASTER</span>
-          {draft ? (
-            <>
-              <div className="section-heading">
-                <h2>Edit {draft.kind === "song" ? "song" : "slides"}</h2>
-                <span className="muted">
-                  {dirty ? "Unsaved library edits" : "Saved / ready to edit"}
+        <section className="content-editor" ref={editor}>
+          {!showPlanner && (
+            <button className="library-back" onClick={backToSongs}>
+              Back to{" "}
+              {tab === "song" ? "songs" : tab === "slides" ? "slides" : "media"}
+            </button>
+          )}
+          <span className="eyebrow">
+            {showPlanner
+              ? "LIBRARY MASTER"
+              : editing
+                ? "EDIT · LIBRARY SONG"
+                : "BROWSE · LIBRARY"}
+          </span>
+          {!showPlanner && tab !== "media" && draft && (
+            <div className="library-editor-heading">
+              <div>
+                {editing ? (
+                  <label className="library-title-field">
+                    {draft.kind === "song" ? "Song title" : "Slides title"}
+                    <input
+                      aria-label="Library title"
+                      placeholder="Enter a title"
+                      value={draft.title}
+                      onChange={(e) =>
+                        update((c) => {
+                          c.title = e.target.value;
+                        })
+                      }
+                    />
+                  </label>
+                ) : (
+                  <h2>{draft.title || "Untitled song"}</h2>
+                )}
+                <span role="status">
+                  {dirty
+                    ? "Unsaved changes"
+                    : "Saved to Library · Service copies unchanged"}
                 </span>
               </div>
-              {similarSongs(searchIndex, draft).length > 0 && (
-                <p role="status">
-                  Similar items already in Library:{" "}
-                  {similarSongs(searchIndex, draft)
-                    .map((content) => content.title)
-                    .join(", ")}
-                  . Saving keeps this as a separate item.
-                </p>
-              )}
-              <label>
-                Library title
-                <input
-                  value={draft.title}
-                  onChange={(e) =>
-                    update((c) => {
-                      c.title = e.target.value;
-                    })
-                  }
-                />
-              </label>
-              <div className="field-pair">
-                <label>
-                  Primary language
-                  <input
-                    value={draft.primaryLanguage}
-                    onChange={(e) =>
-                      update((c) => {
-                        c.primaryLanguage = e.target.value;
-                      })
-                    }
-                  />
-                </label>
-                <label>
-                  Secondary language
-                  <input
-                    value={draft.secondaryLanguage}
-                    onChange={(e) =>
-                      update((c) => {
-                        c.secondaryLanguage = e.target.value;
-                      })
-                    }
-                  />
-                </label>
-              </div>
-              {draft.kind === "song" && (
-                <>
-                  <label>
-                    Song number
-                    <input
-                      value={draft.indexNumber}
-                      onChange={(e) =>
-                        update((c) => {
-                          c.indexNumber = e.target.value;
-                        })
-                      }
-                    />
-                  </label>
-                  <details>
-                    <summary>Rights & metadata</summary>
-                    {(
-                      [
-                        "author",
-                        "copyright",
-                        "ccliNumber",
-                        "rightsStatus",
-                        "copyrightYear",
-                        "publisher",
-                        "licenceNote",
-                        "tags",
-                      ] as const
-                    ).map((key) => (
-                      <label key={key}>
-                        {
-                          {
-                            author: "Author",
-                            copyright: "Copyright",
-                            ccliNumber: "CCLI number",
-                            rightsStatus: "Rights status",
-                            copyrightYear: "Copyright year",
-                            publisher: "Publisher",
-                            licenceNote: "Licence note",
-                            tags: "Tags",
-                          }[key]
-                        }
-                        <input
-                          value={draft[key]}
-                          onChange={(e) =>
-                            update((c) => {
-                              c[key] = e.target.value;
-                            })
-                          }
-                        />
-                      </label>
-                    ))}
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={draft.reportingEnabled}
-                        onChange={(e) =>
-                          update((c) => {
-                            c.reportingEnabled = e.target.checked;
-                          })
-                        }
-                      />
-                      Retain reporting eligibility
-                    </label>
-                    <p className="muted">
-                      Usage reporting is retained as metadata; report generation
-                      is not available yet.
-                    </p>
-                  </details>
-                  {contentCompatibilityIssues(draft).length === 0 && (
-                    <PasteLyrics
-                      key={draft.id}
-                      content={draft}
-                      onStagingChange={setPasteStaging}
-                      onChange={update}
-                      onSelect={(sectionIndex) => {
-                        setSectionIndex(sectionIndex);
-                        setPageIndex(0);
-                      }}
-                    />
-                  )}
-                  <label>
-                    Section
-                    <select
-                      value={sectionIndex}
-                      onChange={(e) => {
-                        setSectionIndex(Number(e.target.value));
-                        setPageIndex(0);
-                      }}
-                    >
-                      {draft.sections.map((s, i) => (
-                        <option key={s.id} value={i}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Section label
-                    <input
-                      value={draft.sections[sectionIndex]?.label || ""}
-                      onChange={(e) =>
-                        update((c) => {
-                          c.sections[sectionIndex].label = e.target.value;
-                        })
-                      }
-                    />
-                  </label>
-                  <div className="actions">
+              <div className="actions">
+                {editing ? (
+                  <>
                     <button
-                      onClick={() => {
-                        update((c) => {
-                          c.sections.push({
-                            id: id(),
-                            label: "V" + (c.sections.length + 1),
-                            pages: [newPage()],
-                          });
-                          syncAuto(c);
-                        });
-                        setSectionIndex(draft.sections.length);
-                        setPageIndex(0);
-                      }}
+                      className="primary"
+                      disabled={busy || pasteStaging}
+                      onClick={() => void run(saveDraft)}
                     >
-                      Add section
+                      {draft.kind === "song" ? "Save song" : "Save slides"}
+                    </button>
+                    <button onClick={cancelEditing} disabled={busy}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditorTab("lyrics");
+                      setEditing(true);
+                    }}
+                  >
+                    Edit {draft.kind === "song" ? "song" : "slides"}
+                  </button>
+                )}
+                <details className="library-song-options">
+                  <summary>Song options</summary>
+                  <div className="library-song-menu">
+                    <button
+                      disabled={busy || dirty || pasteStaging}
+                      onClick={() =>
+                        void run(async () => {
+                          const saved = await db.content.get(draft.id);
+                          if (!saved)
+                            throw Error("The saved song was deleted.");
+                          const copy = cloneContent(saved);
+                          await db.saveContent(copy);
+                          setDraft(copy);
+                          setSectionIndex(0);
+                          setPageIndex(0);
+                          setDirty(false);
+                          setEditing(false);
+                          setMessage("Independent library copy created.");
+                        })
+                      }
+                    >
+                      Duplicate library item
                     </button>
                     <button
-                      disabled={draft.sections.length < 2}
-                      onClick={() => {
-                        if (
-                          !confirm(
-                            "Remove this section and its arrangement entries?",
-                          )
-                        )
-                          return;
-                        update((c) => {
-                          const key = c.sections[sectionIndex].id;
-                          c.sections.splice(sectionIndex, 1);
-                          for (const a of c.arrangements)
-                            a.sectionIds = a.sectionIds.filter(
-                              (s) => s !== key,
-                            );
-                          syncAuto(c);
-                        });
-                        setSectionIndex(0);
-                        setPageIndex(0);
-                      }}
+                      disabled={busy || dirty || pasteStaging}
+                      onClick={() => void run(() => removeContent(draft))}
                     >
-                      Remove section
+                      Delete library item
                     </button>
                   </div>
-                  <SectionTools
-                    content={draft}
-                    sectionIndex={sectionIndex}
-                    onChange={update}
-                    onSelect={(selection) => {
-                      setSectionIndex(selection.sectionIndex);
-                      setPageIndex(selection.pageIndex);
-                    }}
-                  />
-                  <details>
-                    <summary>Arrangements</summary>
-                    {draft.arrangements.map((a, i) => (
-                      <div className="arrangement" key={a.id}>
+                </details>
+              </div>
+              {editing && (
+                <div
+                  className="library-editor-tabs"
+                  role="tablist"
+                  aria-label="Song editor"
+                  onKeyDown={(event) => {
+                    if (
+                      !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                        event.key,
+                      )
+                    )
+                      return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const tabs = Array.from(
+                      event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                        "[role=tab]",
+                      ),
+                    );
+                    const index = tabs.indexOf(
+                      document.activeElement as HTMLButtonElement,
+                    );
+                    const next =
+                      event.key === "Home"
+                        ? 0
+                        : event.key === "End"
+                          ? tabs.length - 1
+                          : (index +
+                              (event.key === "ArrowRight" ? 1 : -1) +
+                              tabs.length) %
+                            tabs.length;
+                    tabs[next]?.focus();
+                    tabs[next]?.click();
+                  }}
+                >
+                  {(["lyrics", "order", "details"] as const)
+                    .filter((key) => draft.kind === "song" || key !== "order")
+                    .map((key) => (
+                      <button
+                        key={key}
+                        id={`library-tab-${key}`}
+                        role="tab"
+                        tabIndex={editorTab === key ? 0 : -1}
+                        aria-selected={editorTab === key}
+                        aria-controls={`library-panel-${key}`}
+                        onClick={() => setEditorTab(key)}
+                      >
+                        {key === "lyrics"
+                          ? "Lyrics"
+                          : key === "order"
+                            ? "Song order"
+                            : "Details"}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+          {!showPlanner &&
+            draft &&
+            editing &&
+            draft.kind === "song" &&
+            contentCompatibilityIssues(draft).length === 0 && (
+              <div
+                className="library-song-paste"
+                hidden={editorTab !== "lyrics"}
+              >
+                <PasteLyrics
+                  modal
+                  key={draft.id}
+                  content={draft}
+                  onStagingChange={setPasteStaging}
+                  onChange={update}
+                  onSelect={(sectionIndex) => {
+                    setSectionIndex(sectionIndex);
+                    setPageIndex(0);
+                  }}
+                />
+              </div>
+            )}
+          {!showPlanner && tab === "media" ? (
+            <div className="library-media-detail">
+              <h2>
+                {media.find((asset) => asset.id === selectedMedia)?.title ??
+                  "Choose a media item"}
+              </h2>
+              {media
+                .filter((asset) => asset.id === selectedMedia)
+                .map((asset) => (
+                  <div key={asset.id}>
+                    <MediaThumbnail asset={asset} />
+                    <p>
+                      {asset.kind} · {(asset.size / 1024 / 1024).toFixed(1)} MB
+                    </p>
+                    <p>Use Add to service to add a separate service copy.</p>
+                    <div className="actions">
+                      <button
+                        disabled={busy}
+                        onClick={() =>
+                          void run(async () => {
+                            const title = prompt("Media title", asset.title);
+                            if (title?.trim())
+                              await db.media.update(asset.id, {
+                                title: title.trim(),
+                              });
+                          })
+                        }
+                      >
+                        Rename
+                      </button>
+                      <button
+                        disabled={busy}
+                        onClick={() =>
+                          void run(async () => {
+                            const refs = await db.references(asset.id);
+                            if (refs.length)
+                              throw Error(
+                                "Media is in use: " + refs.join(", "),
+                              );
+                            if (
+                              confirm(
+                                `Delete “${asset.title}”? Export a backup first.`,
+                              )
+                            ) {
+                              await db.deleteMedia(asset.id);
+                              setSelectedMedia(undefined);
+                              setDetailOpen(false);
+                            }
+                          })
+                        }
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          ) : !showPlanner && draft && !editing ? (
+            <LibraryDetails
+              content={draft}
+              sectionIndex={sectionIndex}
+              pageIndex={pageIndex}
+              onSection={(index) => {
+                setSectionIndex(index);
+                setPageIndex(0);
+              }}
+              onPage={setPageIndex}
+            />
+          ) : (
+            <>
+              {draft ? (
+                <>
+                  <div className="section-heading" hidden={!showPlanner}>
+                    <h2>Edit {draft.kind === "song" ? "song" : "slides"}</h2>
+                    <span className="muted">
+                      {dirty
+                        ? "Unsaved library edits"
+                        : "Saved / ready to edit"}
+                    </span>
+                  </div>
+                  {similarSongs(searchIndex, draft).length > 0 && (
+                    <p role="status">
+                      Similar items already in Library:{" "}
+                      {similarSongs(searchIndex, draft)
+                        .map((content) => content.title)
+                        .join(", ")}
+                      . Saving keeps this as a separate item.
+                    </p>
+                  )}
+                  <div
+                    hidden={!showPlanner && editorTab !== "details"}
+                    role={showPlanner ? undefined : "tabpanel"}
+                    id="library-panel-details"
+                    aria-labelledby={
+                      showPlanner ? undefined : "library-tab-details"
+                    }
+                  >
+                    <details className="library-song-details" open={true}>
+                      <summary>
+                        Song details — title, languages and credits
+                      </summary>
+                      {showPlanner && (
                         <label>
-                          Arrangement name
+                          Library title
                           <input
-                            value={a.name}
+                            value={draft.title}
                             onChange={(e) =>
                               update((c) => {
-                                c.arrangements[i].name = e.target.value;
+                                c.title = e.target.value;
                               })
                             }
                           />
                         </label>
-                        <label className="check">
+                      )}
+                      <div className="field-pair">
+                        <label>
+                          Primary language
                           <input
-                            type="radio"
-                            name="default-arrangement"
-                            checked={a.isDefault}
-                            onChange={() =>
-                              update((c) => {
-                                c.arrangements.forEach((x, j) => {
-                                  x.isDefault = j === i;
-                                });
-                              })
-                            }
-                          />
-                          Default arrangement
-                        </label>
-                        <label className="check">
-                          <input
-                            type="checkbox"
-                            checked={a.auto}
+                            value={draft.primaryLanguage}
                             onChange={(e) =>
                               update((c) => {
-                                c.arrangements[i].auto = e.target.checked;
-                                syncAuto(c);
+                                c.primaryLanguage = e.target.value;
                               })
                             }
                           />
-                          Auto: follow section order
                         </label>
-                        <p className="muted">
-                          Sequence:{" "}
-                          {a.sectionIds
-                            .map(
-                              (key) =>
-                                draft.sections.find((s) => s.id === key)
-                                  ?.label || "?",
-                            )
-                            .join(" → ")}
-                        </p>
-                        <div className="actions">
-                          {draft.sections.map((s) => (
-                            <button
-                              key={s.id}
-                              onClick={() =>
+                        <label>
+                          Secondary language
+                          <input
+                            value={draft.secondaryLanguage}
+                            onChange={(e) =>
+                              update((c) => {
+                                c.secondaryLanguage = e.target.value;
+                              })
+                            }
+                          />
+                        </label>
+                      </div>
+                      {draft.kind === "song" && (
+                        <>
+                          <label>
+                            Song number
+                            <input
+                              value={draft.indexNumber}
+                              onChange={(e) =>
                                 update((c) => {
-                                  c.arrangements[i].auto = false;
-                                  c.arrangements[i].sectionIds.push(s.id);
+                                  c.indexNumber = e.target.value;
                                 })
                               }
+                            />
+                          </label>
+                          <details>
+                            <summary>Rights & metadata</summary>
+                            {(
+                              [
+                                "author",
+                                "copyright",
+                                "ccliNumber",
+                                "rightsStatus",
+                                "copyrightYear",
+                                "publisher",
+                                "licenceNote",
+                                "tags",
+                              ] as const
+                            ).map((key) => (
+                              <label key={key}>
+                                {
+                                  {
+                                    author: "Author",
+                                    copyright: "Copyright",
+                                    ccliNumber: "CCLI number",
+                                    rightsStatus: "Rights status",
+                                    copyrightYear: "Copyright year",
+                                    publisher: "Publisher",
+                                    licenceNote: "Licence note",
+                                    tags: "Tags",
+                                  }[key]
+                                }
+                                <input
+                                  value={draft[key]}
+                                  onChange={(e) =>
+                                    update((c) => {
+                                      c[key] = e.target.value;
+                                    })
+                                  }
+                                />
+                              </label>
+                            ))}
+                            <label className="check">
+                              <input
+                                type="checkbox"
+                                checked={draft.reportingEnabled}
+                                onChange={(e) =>
+                                  update((c) => {
+                                    c.reportingEnabled = e.target.checked;
+                                  })
+                                }
+                              />
+                              Retain reporting eligibility
+                            </label>
+                            <p className="muted">
+                              Usage reporting is retained as metadata; report
+                              generation is not available yet.
+                            </p>
+                          </details>
+                        </>
+                      )}
+                    </details>
+                  </div>
+                  <div
+                    hidden={!showPlanner && editorTab !== "lyrics"}
+                    role={showPlanner ? undefined : "tabpanel"}
+                    id="library-panel-lyrics"
+                    aria-labelledby={
+                      showPlanner ? undefined : "library-tab-lyrics"
+                    }
+                    className={
+                      showPlanner ? undefined : "library-writing-layout"
+                    }
+                  >
+                    <aside className="library-section-editor">
+                      {" "}
+                      {!showPlanner && editing && (
+                        <>
+                          <div className="library-section-heading">
+                            Sections
+                          </div>
+                          <ReorderNavigation
+                            label="Edit song sections"
+                            items={draft.sections.map((section) => ({
+                              id: section.id,
+                              label: section.label,
+                              detail: `${section.pages.length} ${section.pages.length === 1 ? "slide" : "slides"}`,
+                            }))}
+                            selectedId={draft.sections[sectionIndex]?.id}
+                            onSelect={(index) => {
+                              setSectionIndex(index);
+                              setPageIndex(0);
+                            }}
+                            onMove={(from, to) => {
+                              const selected = draft.sections[sectionIndex]?.id;
+                              update((c) => {
+                                moveSection(c, from, to - from);
+                              });
+                              const reordered = [...draft.sections];
+                              const [moved] = reordered.splice(from, 1);
+                              reordered.splice(to, 0, moved);
+                              setSectionIndex(
+                                reordered.findIndex(
+                                  (section) => section.id === selected,
+                                ),
+                              );
+                            }}
+                            selectedTools={sectionManagement}
+                          />
+                        </>
+                      )}
+                      {draft.kind === "song" && (
+                        <>
+                          {!showPlanner && (
+                            <EditorMenu
+                              label="Add section"
+                              summaryText="+ Add section"
+                              closeOnSelect={false}
+                              className="library-add-menu"
                             >
-                              Append {s.label}
-                            </button>
-                          ))}
-                          <button
-                            disabled={a.sectionIds.length < 2}
-                            onClick={() =>
+                              <div className="library-add-sections">
+                                <label className="library-section-type">
+                                  Add section
+                                  <select
+                                    aria-label="New section type"
+                                    value={sectionType}
+                                    onChange={(event) =>
+                                      setSectionType(event.target.value)
+                                    }
+                                  >
+                                    {[
+                                      "Verse",
+                                      "Chorus",
+                                      "Pre-chorus",
+                                      "Bridge",
+                                      "Coda",
+                                      "Custom",
+                                    ].map((type) => (
+                                      <option key={type}>{type}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                                {sectionType === "Custom" && (
+                                  <label className="library-custom-section">
+                                    Section name
+                                    <input
+                                      aria-label="Custom section name"
+                                      placeholder="e.g. Refrain"
+                                      value={customSectionName}
+                                      onChange={(event) =>
+                                        setCustomSectionName(event.target.value)
+                                      }
+                                    />
+                                  </label>
+                                )}
+                                <button
+                                  aria-label="Add selected section"
+                                  disabled={
+                                    sectionType === "Custom" &&
+                                    !customSectionName.trim()
+                                  }
+                                  onClick={() => {
+                                    const base =
+                                      sectionType === "Custom"
+                                        ? customSectionName.trim()
+                                        : sectionType;
+                                    if (!base) return;
+                                    const normalize = (label: string) =>
+                                      label
+                                        .toLowerCase()
+                                        .replace(/^v(?=\d)/, "verse")
+                                        .replace(/\s+/g, "");
+                                    const used = new Set(
+                                      draft.sections.map((section) =>
+                                        normalize(section.label),
+                                      ),
+                                    );
+                                    let number = 1;
+                                    let label =
+                                      sectionType === "Verse"
+                                        ? `Verse ${number}`
+                                        : base;
+                                    while (used.has(normalize(label))) {
+                                      number++;
+                                      label = `${base} ${number}`;
+                                    }
+                                    update((c) => {
+                                      c.sections.push({
+                                        id: id(),
+                                        label,
+                                        pages: [newPage()],
+                                      });
+                                      syncAuto(c);
+                                    });
+                                    setSectionIndex(draft.sections.length);
+                                    setPageIndex(0);
+                                  }}
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            </EditorMenu>
+                          )}
+                          {showPlanner &&
+                            contentCompatibilityIssues(draft).length === 0 && (
+                              <PasteLyrics
+                                key={draft.id}
+                                content={draft}
+                                onStagingChange={setPasteStaging}
+                                onChange={update}
+                                onSelect={(sectionIndex) => {
+                                  setSectionIndex(sectionIndex);
+                                  setPageIndex(0);
+                                }}
+                              />
+                            )}
+
+                          {showPlanner && sectionManagement}
+                        </>
+                      )}
+                      {!showPlanner && draft.kind === "song" && (
+                        <p className="library-repeat-hint">
+                          To repeat the same chorus, use Song order.
+                        </p>
+                      )}
+                    </aside>
+                    <div className="library-lyrics-editor">
+                      <div className="library-slide-toolbar">
+                        {!showPlanner && (
+                          <strong className="library-slide-context">
+                            {draft.kind === "song"
+                              ? draft.sections[sectionIndex]?.label
+                              : "Slides"}{" "}
+                            · Slide {pageIndex + 1} of{" "}
+                            {draft.kind === "song"
+                              ? draft.sections[sectionIndex]?.pages.length
+                              : draft.pages.length}
+                          </strong>
+                        )}
+                        {!showPlanner && (
+                          <ReorderNavigation
+                            horizontal
+                            label="Section slides"
+                            items={(draft.kind === "song"
+                              ? (draft.sections[sectionIndex]?.pages ?? [])
+                              : draft.pages
+                            ).map((slide, index) => ({
+                              id: slide.id,
+                              label: `Slide ${index + 1}`,
+                              excerpt:
+                                slide.text.split("\n")[0] ||
+                                slide.title ||
+                                "Empty slide",
+                            }))}
+                            selectedId={page?.id}
+                            onSelect={setPageIndex}
+                            onMove={(from, to) => {
+                              const pages =
+                                draft.kind === "song"
+                                  ? draft.sections[sectionIndex].pages
+                                  : draft.pages;
+                              const selected = pages[pageIndex]?.id;
                               update((c) => {
-                                c.arrangements[i].auto = false;
-                                c.arrangements[i].sectionIds.pop();
-                              })
+                                moveSlide(c, sectionIndex, from, to - from);
+                              });
+                              const reordered = [...pages];
+                              const [moved] = reordered.splice(from, 1);
+                              reordered.splice(to, 0, moved);
+                              setPageIndex(
+                                reordered.findIndex(
+                                  (slide) => slide.id === selected,
+                                ),
+                              );
+                            }}
+                          />
+                        )}
+                        <label hidden={!showPlanner}>
+                          Slide in {draft.kind === "song" ? "section" : "set"}
+                          <select
+                            value={pageIndex}
+                            onChange={(e) =>
+                              setPageIndex(Number(e.target.value))
                             }
                           >
-                            Remove last entry
-                          </button>
+                            {(draft.kind === "song"
+                              ? (draft.sections[sectionIndex]?.pages ?? [])
+                              : draft.pages
+                            ).map((p, i) => (
+                              <option key={p.id} value={i}>
+                                {i + 1} ·{" "}
+                                {p.title ||
+                                  p.text.slice(0, 30) ||
+                                  "Empty slide"}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <div className="actions">
                           <button
-                            onClick={() =>
+                            onClick={() => {
+                              const pages =
+                                draft.kind === "song"
+                                  ? draft.sections[sectionIndex].pages
+                                  : draft.pages;
                               update((c) => {
-                                c.arrangements[i].auto = false;
-                                c.arrangements[i].sectionIds = c.sections.map(
-                                  (s) => s.id,
-                                );
-                              })
-                            }
+                                (c.kind === "song"
+                                  ? c.sections[sectionIndex].pages
+                                  : c.pages
+                                ).push(newPage());
+                              });
+                              setPageIndex(pages.length);
+                            }}
                           >
-                            Reset sequence
-                          </button>
-                          <button
-                            disabled={draft.arrangements.length < 2}
-                            onClick={() =>
-                              update((c) => {
-                                c.arrangements.splice(i, 1);
-                                if (!c.arrangements.some((a) => a.isDefault))
-                                  c.arrangements[0].isDefault = true;
-                              })
-                            }
-                          >
-                            Delete arrangement
+                            Add slide
                           </button>
                         </div>
+                        <EditorMenu
+                          label={showPlanner ? "Slide tools" : "Slide options"}
+                          inline={showPlanner}
+                          className="library-slide-menu"
+                        >
+                          {" "}
+                          <button
+                            disabled={
+                              (draft.kind === "song"
+                                ? draft.sections[sectionIndex]?.pages.length
+                                : draft.pages.length) < 2
+                            }
+                            onClick={() => {
+                              if (!confirm("Delete this slide?")) return;
+                              update((c) => {
+                                (c.kind === "song"
+                                  ? c.sections[sectionIndex].pages
+                                  : c.pages
+                                ).splice(pageIndex, 1);
+                              });
+                              setPageIndex(0);
+                            }}
+                          >
+                            Remove slide
+                          </button>{" "}
+                          <SlideTools
+                            inline={!showPlanner}
+                            content={draft}
+                            sectionIndex={sectionIndex}
+                            pageIndex={pageIndex}
+                            onChange={update}
+                            onSelect={(selection) => {
+                              setSectionIndex(selection.sectionIndex);
+                              setPageIndex(selection.pageIndex);
+                            }}
+                          />
+                        </EditorMenu>
                       </div>
-                    ))}
+                      {page && (
+                        <PageEditor
+                          page={page}
+                          change={changePage}
+                          media={media}
+                          focused={!showPlanner}
+                          languages={
+                            showPlanner
+                              ? undefined
+                              : {
+                                  primary: draft.primaryLanguage,
+                                  secondary: draft.secondaryLanguage,
+                                  change: (channel, language) =>
+                                    update((c) => {
+                                      c[
+                                        channel === "primary"
+                                          ? "primaryLanguage"
+                                          : "secondaryLanguage"
+                                      ] = language;
+                                    }),
+                                }
+                          }
+                        />
+                      )}{" "}
+                    </div>
+                  </div>
+                  {draft.kind === "song" && (
+                    <div
+                      hidden={!showPlanner && editorTab !== "order"}
+                      role={showPlanner ? undefined : "tabpanel"}
+                      id="library-panel-order"
+                      aria-labelledby={
+                        showPlanner ? undefined : "library-tab-order"
+                      }
+                    >
+                      <details open={!showPlanner ? true : undefined}>
+                        <summary>
+                          {showPlanner ? "Arrangements" : "Saved song orders"}
+                        </summary>
+                        {!showPlanner && (
+                          <p className="muted">
+                            Repeat sections here without duplicating their
+                            lyrics. Editing this order leaves existing service
+                            copies unchanged.
+                          </p>
+                        )}
+                        {draft.arrangements.map((a, i) => (
+                          <div className="arrangement" key={a.id}>
+                            <label>
+                              Arrangement name
+                              <input
+                                value={a.name}
+                                onChange={(e) =>
+                                  update((c) => {
+                                    c.arrangements[i].name = e.target.value;
+                                  })
+                                }
+                              />
+                            </label>
+                            <label className="check">
+                              <input
+                                type="radio"
+                                name="default-arrangement"
+                                checked={a.isDefault}
+                                onChange={() =>
+                                  update((c) => {
+                                    c.arrangements.forEach((x, j) => {
+                                      x.isDefault = j === i;
+                                    });
+                                  })
+                                }
+                              />
+                              Default arrangement
+                            </label>
+                            <label className="check">
+                              <input
+                                type="checkbox"
+                                checked={a.auto}
+                                onChange={(e) =>
+                                  update((c) => {
+                                    c.arrangements[i].auto = e.target.checked;
+                                    syncAuto(c);
+                                  })
+                                }
+                              />
+                              Auto: follow section order
+                            </label>
+                            {!showPlanner && (
+                              <ol className="library-order-entries">
+                                {a.sectionIds.map((key, position) => (
+                                  <li key={`${key}-${position}`}>
+                                    <span>
+                                      {draft.sections.find(
+                                        (section) => section.id === key,
+                                      )?.label || "Missing section"}
+                                    </span>
+                                    <div className="actions">
+                                      {([-1, 1] as const).map((direction) => (
+                                        <button
+                                          key={direction}
+                                          disabled={
+                                            position + direction < 0 ||
+                                            position + direction >=
+                                              a.sectionIds.length
+                                          }
+                                          aria-label={`${direction < 0 ? "Move earlier" : "Move later"} · position ${position + 1}`}
+                                          onClick={() =>
+                                            update((c) => {
+                                              const order = c.arrangements[i];
+                                              order.auto = false;
+                                              [
+                                                order.sectionIds[position],
+                                                order.sectionIds[
+                                                  position + direction
+                                                ],
+                                              ] = [
+                                                order.sectionIds[
+                                                  position + direction
+                                                ],
+                                                order.sectionIds[position],
+                                              ];
+                                            })
+                                          }
+                                        >
+                                          {direction < 0
+                                            ? "Move earlier"
+                                            : "Move later"}
+                                        </button>
+                                      ))}
+                                      <button
+                                        aria-label={`Remove · position ${position + 1}`}
+                                        disabled={a.sectionIds.length < 2}
+                                        onClick={() =>
+                                          update((c) => {
+                                            c.arrangements[i].auto = false;
+                                            c.arrangements[i].sectionIds.splice(
+                                              position,
+                                              1,
+                                            );
+                                          })
+                                        }
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ol>
+                            )}
+                            <p className="muted">
+                              Sequence:{" "}
+                              {a.sectionIds
+                                .map(
+                                  (key) =>
+                                    draft.sections.find((s) => s.id === key)
+                                      ?.label || "?",
+                                )
+                                .join(" → ")}
+                            </p>
+                            <div className="actions">
+                              {draft.sections.map((s) => (
+                                <button
+                                  key={s.id}
+                                  onClick={() =>
+                                    update((c) => {
+                                      c.arrangements[i].auto = false;
+                                      c.arrangements[i].sectionIds.push(s.id);
+                                    })
+                                  }
+                                >
+                                  {showPlanner ? "Append" : "Add to order:"}{" "}
+                                  {s.label}
+                                </button>
+                              ))}
+                              <button
+                                disabled={a.sectionIds.length < 2}
+                                onClick={() =>
+                                  update((c) => {
+                                    c.arrangements[i].auto = false;
+                                    c.arrangements[i].sectionIds.pop();
+                                  })
+                                }
+                              >
+                                Remove last entry
+                              </button>
+                              <button
+                                onClick={() =>
+                                  update((c) => {
+                                    c.arrangements[i].auto = false;
+                                    c.arrangements[i].sectionIds =
+                                      c.sections.map((s) => s.id);
+                                  })
+                                }
+                              >
+                                {showPlanner
+                                  ? "Reset sequence"
+                                  : "Use section order"}
+                              </button>
+                              <button
+                                disabled={draft.arrangements.length < 2}
+                                onClick={() =>
+                                  update((c) => {
+                                    c.arrangements.splice(i, 1);
+                                    if (
+                                      !c.arrangements.some((a) => a.isDefault)
+                                    )
+                                      c.arrangements[0].isDefault = true;
+                                  })
+                                }
+                              >
+                                Delete arrangement
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() =>
+                            update((c) => {
+                              c.arrangements.push({
+                                id: id(),
+                                name: "Custom " + (c.arrangements.length + 1),
+                                sectionIds: c.sections.map((s) => s.id),
+                                isDefault: false,
+                                auto: false,
+                              });
+                            })
+                          }
+                        >
+                          {showPlanner ? "New arrangement" : "New song order"}
+                        </button>
+                      </details>
+                    </div>
+                  )}
+                  {contentCompatibilityIssues(draft).length > 0 && (
+                    <div role="alert">
+                      <p>
+                        Legacy content needs review. The saved original and its
+                        hidden data are retained.
+                      </p>
+                      <ul>
+                        {contentCompatibilityIssues(draft).map((issue) => (
+                          <li key={issue}>{issue}</li>
+                        ))}
+                      </ul>
+                      <button
+                        disabled={busy}
+                        onClick={() =>
+                          void run(async () => {
+                            if (
+                              !confirm(
+                                "Create an editable copy of the currently visible content? Hidden branches remain only in the saved original. Inconsistent automatic orders become Custom without changing their sequence. Existing services are unchanged. Export a backup first.",
+                              )
+                            )
+                              return;
+                            const original = await db.content.get(draft.id);
+                            if (!original)
+                              throw Error(
+                                "Save/export the original before creating a recovery copy.",
+                              );
+                            const copy = editableContentCopy(draft);
+                            await db.saveContent(copy);
+                            setDraft(copy);
+                            setSectionIndex(0);
+                            setPageIndex(0);
+                            setDirty(false);
+                            setMessage(
+                              "Editable copy created. The saved original, hidden content and existing services were retained.",
+                            );
+                          })
+                        }
+                      >
+                        Create editable copy
+                      </button>
+                    </div>
+                  )}
+                  <div className="actions">
                     <button
+                      className="primary"
+                      hidden={!showPlanner}
+                      disabled={busy || pasteStaging}
                       onClick={() =>
-                        update((c) => {
-                          c.arrangements.push({
-                            id: id(),
-                            name: "Custom " + (c.arrangements.length + 1),
-                            sectionIds: c.sections.map((s) => s.id),
-                            isDefault: false,
-                            auto: false,
-                          });
+                        void run(async () => {
+                          await saveDraft();
                         })
                       }
                     >
-                      New arrangement
+                      Save library item
                     </button>
-                  </details>
-                </>
-              )}
-              <label>
-                Slide in {draft.kind === "song" ? "section" : "set"}
-                <select
-                  value={pageIndex}
-                  onChange={(e) => setPageIndex(Number(e.target.value))}
-                >
-                  {(draft.kind === "song"
-                    ? (draft.sections[sectionIndex]?.pages ?? [])
-                    : draft.pages
-                  ).map((p, i) => (
-                    <option key={p.id} value={i}>
-                      {i + 1} ·{" "}
-                      {p.title || p.text.slice(0, 30) || "Empty slide"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="actions">
-                <button
-                  onClick={() => {
-                    const pages =
-                      draft.kind === "song"
-                        ? draft.sections[sectionIndex].pages
-                        : draft.pages;
-                    update((c) => {
-                      (c.kind === "song"
-                        ? c.sections[sectionIndex].pages
-                        : c.pages
-                      ).push(newPage());
-                    });
-                    setPageIndex(pages.length);
-                  }}
-                >
-                  Add slide
-                </button>
-                <button
-                  disabled={
-                    (draft.kind === "song"
-                      ? draft.sections[sectionIndex]?.pages.length
-                      : draft.pages.length) < 2
-                  }
-                  onClick={() => {
-                    if (!confirm("Delete this slide?")) return;
-                    update((c) => {
-                      (c.kind === "song"
-                        ? c.sections[sectionIndex].pages
-                        : c.pages
-                      ).splice(pageIndex, 1);
-                    });
-                    setPageIndex(0);
-                  }}
-                >
-                  Remove slide
-                </button>
-              </div>
-              <SlideTools
-                content={draft}
-                sectionIndex={sectionIndex}
-                pageIndex={pageIndex}
-                onChange={update}
-                onSelect={(selection) => {
-                  setSectionIndex(selection.sectionIndex);
-                  setPageIndex(selection.pageIndex);
-                }}
-              />
-              {page && (
-                <PageEditor page={page} change={changePage} media={media} />
-              )}
-              {contentCompatibilityIssues(draft).length > 0 && (
-                <div role="alert">
-                  <p>
-                    Legacy content needs review. The saved original and its
-                    hidden data are retained.
-                  </p>
-                  <ul>
-                    {contentCompatibilityIssues(draft).map((issue) => (
-                      <li key={issue}>{issue}</li>
-                    ))}
-                  </ul>
+                    <button
+                      hidden={!showPlanner}
+                      disabled={busy}
+                      onClick={() =>
+                        void run(async () => {
+                          const copy = cloneContent(draft);
+                          await db.saveContent(copy);
+                          setDraft(copy);
+                          setDirty(false);
+                          setMessage("Independent library copy created.");
+                        })
+                      }
+                    >
+                      Duplicate library item
+                    </button>
+                    <button
+                      hidden={!showPlanner}
+                      disabled={busy}
+                      onClick={() => void run(() => removeContent(draft))}
+                    >
+                      Delete library item
+                    </button>
+                  </div>
+                  {draft.kind === "song" && (
+                    <label hidden={!showPlanner}>
+                      Arrangement to add
+                      <select
+                        value={arrangement}
+                        onChange={(e) => setArrangement(e.target.value)}
+                      >
+                        <option value="">Default arrangement</option>
+                        {draft.arrangements.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <button
-                    disabled={busy}
+                    hidden={!showPlanner}
+                    disabled={busy || dirty}
                     onClick={() =>
                       void run(async () => {
-                        if (
-                          !confirm(
-                            "Create an editable copy of the currently visible content? Hidden branches remain only in the saved original. Inconsistent automatic orders become Custom without changing their sequence. Existing services are unchanged. Export a backup first.",
-                          )
-                        )
-                          return;
-                        const original = await db.content.get(draft.id);
-                        if (!original)
-                          throw Error(
-                            "Save/export the original before creating a recovery copy.",
-                          );
-                        const copy = editableContentCopy(draft);
-                        await db.saveContent(copy);
-                        setDraft(copy);
-                        setSectionIndex(0);
-                        setPageIndex(0);
-                        setDirty(false);
-                        setMessage(
-                          "Editable copy created. The saved original, hidden content and existing services were retained.",
-                        );
+                        if (!service)
+                          throw Error("Create or choose a service first.");
+                        await saveService({
+                          ...service,
+                          items: [
+                            ...service.items,
+                            makeItem(draft, arrangement),
+                          ],
+                        });
+                        setMessage("Independent copy added to service.");
                       })
                     }
                   >
-                    Create editable copy
+                    Add library item to service
                   </button>
-                </div>
+                </>
+              ) : (
+                <p className="muted">
+                  Choose a library item or create one. Service copies have their
+                  own content, notes and design.
+                </p>
               )}
-              <div className="actions">
-                <button
-                  className="primary"
-                  disabled={busy || pasteStaging}
-                  onClick={() =>
-                    void run(async () => {
-                      const issues = contentCompatibilityIssues(draft);
-                      if (issues.length) throw Error(issues.join(" "));
-                      syncAuto(draft);
-                      const duplicate = content.find(
-                        (c) =>
-                          c.id !== draft.id &&
-                          (c.title.trim().toLowerCase() ===
-                            draft.title.trim().toLowerCase() ||
-                            (draft.indexNumber &&
-                              c.indexNumber === draft.indexNumber)),
-                      );
-                      if (
-                        duplicate &&
-                        !confirm(
-                          `Possible duplicate: “${duplicate.title}”. Save anyway?`,
-                        )
-                      )
-                        return;
-                      const generation = draftGeneration.current;
-                      const saved = await db.saveContent(draft);
-                      setDraft((current) =>
-                        current?.id === saved.id
-                          ? {
-                              ...current,
-                              revision: saved.revision,
-                              revisionToken: saved.revisionToken,
-                              updatedAt: saved.updatedAt,
-                            }
-                          : current,
-                      );
-                      if (generation === draftGeneration.current)
-                        setDirty(false);
-                      setMessage(
-                        "Library master saved. Existing service copies remain independent.",
-                      );
-                    })
-                  }
-                >
-                  Save library item
-                </button>
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      const copy = cloneContent(draft);
-                      await db.saveContent(copy);
-                      setDraft(copy);
-                      setDirty(false);
-                      setMessage("Independent library copy created.");
-                    })
-                  }
-                >
-                  Duplicate library item
-                </button>
-                <button
-                  disabled={busy}
-                  onClick={() => void run(() => removeContent(draft))}
-                >
-                  Delete library item
-                </button>
-              </div>
-              {draft.kind === "song" && (
-                <label hidden={!showPlanner}>
-                  Arrangement to add
-                  <select
-                    value={arrangement}
-                    onChange={(e) => setArrangement(e.target.value)}
-                  >
-                    <option value="">Default arrangement</option>
-                    {draft.arrangements.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <button
-                hidden={!showPlanner}
-                disabled={busy || dirty}
-                onClick={() =>
-                  void run(async () => {
-                    if (!service)
-                      throw Error("Create or choose a service first.");
-                    await saveService({
-                      ...service,
-                      items: [...service.items, makeItem(draft, arrangement)],
-                    });
-                    setMessage("Independent copy added to service.");
-                  })
-                }
-              >
-                Add library item to service
-              </button>
             </>
-          ) : (
-            <p className="muted">
-              Choose a library item or create one. Service copies have their own
-              content, notes and design.
-            </p>
           )}
         </section>
         <section className="planner" hidden={!showPlanner}>

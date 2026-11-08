@@ -12,12 +12,17 @@ export function PasteLyrics({
   onChange,
   onSelect,
   onStagingChange,
+  modal = false,
 }: {
+  modal?: boolean;
   content: Content;
   onChange: (change: (content: Content) => void) => void;
   onSelect?: (sectionIndex: number) => void;
   onStagingChange?: (staged: boolean) => void;
 }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
   const details = useRef<HTMLDetailsElement>(null),
     [primary, setPrimary] = useState(""),
     [secondary, setSecondary] = useState(""),
@@ -30,19 +35,26 @@ export function PasteLyrics({
     onStagingChange?.(!!(primary || secondary));
   }, [primary, secondary, onStagingChange]);
   useEffect(() => () => onStagingChange?.(false), [onStagingChange]);
+  useEffect(() => {
+    if (!modal || !open || !dialog.current) return;
+    const element = dialog.current;
+    element.showModal();
+    element.querySelector<HTMLTextAreaElement>("textarea")?.focus();
+    return () => {
+      element.close();
+      trigger.current?.focus({ preventScroll: true });
+    };
+  }, [modal, open]);
   function reset() {
+    setOpen(false);
     setPrimary("");
     setSecondary("");
     setPreview(undefined);
     setError("");
     if (details.current) details.current.open = false;
   }
-  return (
-    <details ref={details} className="paste-lyrics">
-      <summary>
-        Paste whole-song lyrics
-        {primary || secondary ? " · staged, not applied" : ""}
-      </summary>
+  const fields = (
+    <>
       <p>
         Mark each section with a line like <code>[Verse 1]</code> or{" "}
         <code>[Chorus]</code>. Put <code>---</code> on its own line to start
@@ -162,6 +174,62 @@ export function PasteLyrics({
           </small>
         </div>
       )}
+    </>
+  );
+  return modal ? (
+    <>
+      <button
+        ref={trigger}
+        className="paste-modal-trigger"
+        onClick={() => setOpen(true)}
+      >
+        Paste whole-song lyrics
+        {primary || secondary ? " · staged, not applied" : ""}
+      </button>
+      <dialog
+        ref={dialog}
+        className="paste-dialog"
+        aria-label="Paste whole-song lyrics"
+        onCancel={(event) => {
+          event.preventDefault();
+          setOpen(false);
+        }}
+        onClose={() => setOpen(false)}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) {
+            const bounds = event.currentTarget.getBoundingClientRect();
+            if (
+              event.clientX < bounds.left ||
+              event.clientX > bounds.right ||
+              event.clientY < bounds.top ||
+              event.clientY > bounds.bottom
+            )
+              setOpen(false);
+          }
+        }}
+      >
+        <div className="paste-dialog-heading">
+          <h2>Paste whole-song lyrics</h2>
+          <button
+            aria-label="Close paste window"
+            onClick={() => setOpen(false)}
+          >
+            Close
+          </button>
+        </div>
+        <p className="muted">
+          Closing this window keeps your staged text. Cancel paste discards it.
+        </p>
+        {fields}
+      </dialog>
+    </>
+  ) : (
+    <details ref={details} className="paste-lyrics">
+      <summary>
+        Paste whole-song lyrics
+        {primary || secondary ? " · staged, not applied" : ""}
+      </summary>
+      {fields}
     </details>
   );
 }
