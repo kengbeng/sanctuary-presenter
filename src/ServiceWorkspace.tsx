@@ -43,6 +43,9 @@ export function ServiceWorkspace({
   onBlank,
   onSavingChange,
   prepareRequest,
+  onCurrentService,
+  libraryAddRequest,
+  onLibraryAddResult,
 }: {
   mode: "services" | "prepare" | "review";
   onMode: (mode: "services" | "prepare" | "review") => void;
@@ -52,6 +55,17 @@ export function ServiceWorkspace({
   onBlank: () => void;
   onSavingChange?: (saving: boolean) => void;
   prepareRequest?: { serviceId: string; token: string };
+  onCurrentService?: (
+    service: { id: string; title: string } | undefined,
+  ) => void;
+  libraryAddRequest?: {
+    serviceId: string;
+    contentId?: string;
+    mediaId?: string;
+    arrangementId?: string;
+    token: string;
+  };
+  onLibraryAddResult?: (error?: string) => void;
 }) {
   const orders =
     useLiveQuery(
@@ -61,6 +75,11 @@ export function ServiceWorkspace({
   const library = useLiveQuery(() => db.content.toArray(), []) ?? [];
   const media = useLiveQuery(() => db.media.toArray(), []) ?? [];
   const [service, setService] = useState<ServiceOrder>();
+  useEffect(() => {
+    onCurrentService?.(
+      service ? { id: service.id, title: service.title } : undefined,
+    );
+  }, [service?.id, service?.title, onCurrentService]);
   const [reviewOrder, setReviewOrder] = useState<ServiceOrder>();
   const [comparison, setComparison] = useState<{
     order: ServiceOrder;
@@ -179,7 +198,9 @@ export function ServiceWorkspace({
       return;
     }
     if (draftDirty) {
-      setError("Finish or cancel the current song draft before opening the presentation service.");
+      setError(
+        "Finish or cancel the current song draft before opening the presentation service.",
+      );
       return;
     }
     let cancelled = false;
@@ -187,10 +208,13 @@ export function ServiceWorkspace({
       await settled();
       const order = await db.services.get(prepareRequest.serviceId);
       if (cancelled) return;
-      if (!order) throw Error("The presentation service is no longer saved locally.");
+      if (!order)
+        throw Error("The presentation service is no longer saved locally.");
       await open(order);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [prepareRequest]);
   function mutate(change: (order: ServiceOrder) => void) {
     if (!working.current) return;
@@ -266,9 +290,13 @@ export function ServiceWorkspace({
       if (target) Object.assign(target, page);
     });
   }
-  async function addContent(content: Content, nonPresenting = false) {
+  async function addContent(
+    content: Content,
+    nonPresenting = false,
+    arrangementId = "",
+  ) {
     await settled();
-    const item = makeItem(content);
+    const item = makeItem(content, arrangementId);
     if (nonPresenting) item.nonPresenting = true;
     const next = {
       ...working.current!,
@@ -286,6 +314,61 @@ export function ServiceWorkspace({
     setPageId("");
     setStatus(`Added “${item.title}” as a separate service copy.`);
   }
+  useEffect(() => {
+    if (!libraryAddRequest) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await settled();
+        if (cancelled) return;
+        if (draftDirty)
+          throw Error(
+            "Finish or cancel the unsaved service draft before adding a Library item.",
+          );
+        setBusy(true);
+        setError("");
+        if (activeId.current !== libraryAddRequest.serviceId) {
+          const target = await db.services.get(libraryAddRequest.serviceId);
+          if (cancelled) return;
+          if (!target)
+            throw Error(
+              "The destination service was deleted. Choose another service.",
+            );
+          await open(target);
+        }
+        let source: Content | undefined;
+        if (libraryAddRequest.mediaId) {
+          const asset = await db.media.get(libraryAddRequest.mediaId);
+          if (!asset)
+            throw Error("The selected media was deleted. Choose another item.");
+          source = newContent("slides");
+          source.title = asset.title;
+          source.pages[0].mediaId = asset.id;
+        } else if (libraryAddRequest.contentId)
+          source = await db.content.get(libraryAddRequest.contentId);
+        if (!source)
+          throw Error(
+            "The selected Library item was deleted. Choose another item.",
+          );
+        if (cancelled) return;
+        await addContent(source, false, libraryAddRequest.arrangementId);
+        onMode("prepare");
+        onLibraryAddResult?.();
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Could not add the Library item.";
+        setError(message);
+        onLibraryAddResult?.(message);
+      } finally {
+        setBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [libraryAddRequest]);
   function createDraft(kind: "song" | "slides") {
     const content = newContent(kind);
     content.title = "";

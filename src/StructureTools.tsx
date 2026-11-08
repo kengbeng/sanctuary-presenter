@@ -8,6 +8,7 @@ import {
   type AuthoringSelection,
 } from "./authoring";
 type Props = {
+  inline?: boolean;
   content: Content;
   sectionIndex: number;
   pageIndex?: number;
@@ -26,9 +27,10 @@ function edit(
 export function SectionTools(props: Props) {
   const section = props.content.sections[props.sectionIndex];
   if (!section) return null;
+  const Container = props.inline ? "div" : "details";
   return (
-    <details className="structure-tools">
-      <summary>Section options · {section.label}</summary>
+    <Container className="structure-tools">
+      {!props.inline && <summary>Section options · {section.label}</summary>}
       <div className="actions">
         <button
           onClick={() =>
@@ -57,7 +59,7 @@ export function SectionTools(props: Props) {
       <small>
         Copies have independent slides. Custom song orders stay unchanged.
       </small>
-    </details>
+    </Container>
   );
 }
 export function SlideTools(props: Props) {
@@ -67,9 +69,10 @@ export function SlideTools(props: Props) {
         ? props.content.sections[props.sectionIndex]?.pages
         : props.content.pages;
   if (!pages?.[pageIndex]) return null;
+  const Container = props.inline ? "div" : "details";
   return (
-    <details className="structure-tools">
-      <summary>Slide options · {pageIndex + 1}</summary>
+    <Container className="structure-tools">
+      {!props.inline && <summary>Slide options · {pageIndex + 1}</summary>}
       <div className="actions">
         <button
           onClick={() =>
@@ -128,6 +131,6 @@ export function SlideTools(props: Props) {
           )}
         </label>
       )}
-    </details>
+    </Container>
   );
 }

@@ -107,6 +107,7 @@ test("new Services and Prepare create real bilingual repeated songs atomically a
     .locator(".library-row")
     .filter({ has: page.getByText("New worship song", { exact: true }) })
     .click();
+  await page.getByRole("button", { name: "Edit song", exact: true }).click();
   await expect(
     page
       .locator(".content-editor")

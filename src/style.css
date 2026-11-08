@@ -1220,3 +1220,15 @@ summary {
   scroll-padding-top: 75px;
   scroll-padding-bottom: 55px;
 }
+
+.header-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.header-update { border-color: #83d5bf; color: #b9f2e2; font-size: 13px; white-space: nowrap; }
+
+.app-install-control {display:flex;align-items:center;}
+.install-announcement {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}
+.install-dialog {width:min(570px,calc(100vw - 28px));max-height:85vh;overflow:auto;background:#192832;color:#e9eef1;border:1px solid #688494;border-radius:10px;padding:22px;text-align:left;}
+.install-dialog::backdrop {background:#000a;}
+.install-dialog-heading {display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.install-dialog-heading h2 {margin:0;}
+.install-dialog li {margin:12px 0;}
+.install-dialog a {color:#8cdec6;}

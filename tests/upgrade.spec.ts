@@ -17,6 +17,7 @@ test("schema-2 shell keeps live output while update waits, then upgrades saved d
   for (const [name, file] of Object.entries(baseline.files))
     if (!file.dir) oldFiles.set(name, await file.async("nodebuffer"));
   let current = false;
+  let updateRevision = 0;
   const root = resolve("dist"),
     base = "/sanctuary-presenter/";
   const server = createServer(async (request, response) => {
@@ -33,7 +34,12 @@ test("schema-2 shell keeps live output while update waits, then upgrades saved d
         response.writeHead(404).end();
         return;
       }
-      const bytes = current ? await readFile(path) : oldFiles.get(name);
+      let bytes = current ? await readFile(path) : oldFiles.get(name);
+      if (current && name === "sw.js" && bytes)
+        bytes = Buffer.concat([
+          bytes,
+          Buffer.from(`\n// rehearsal revision ${updateRevision}\n`),
+        ]);
       if (!bytes) {
         response.writeHead(404).end();
         return;
@@ -158,7 +164,21 @@ test("schema-2 shell keeps live output while update waits, then upgrades saved d
     await expect(
       page.getByText(`v2 · ${releaseVersion}`, { exact: true }),
     ).toBeVisible();
-    await expect(page.locator(".brand strong")).toHaveText("Sanctuary Presenter");
+    await expect(page.locator(".brand strong")).toHaveText(
+      "Sanctuary Presenter",
+    );
+    updateRevision = 1;
+    await page.evaluate(async () => {
+      await (await navigator.serviceWorker.ready).update();
+    });
+    await expect(
+      page.locator("header").getByRole("button", {
+        name: "Apply update after stopping all output windows",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page.locator("footer").getByRole("button")).toHaveCount(0);
+    await expect(page.locator("header .header-update")).toHaveText("Update");
     await page
       .getByRole("button", { name: "Open Upgrade service", exact: true })
       .click();
@@ -211,6 +231,30 @@ test("schema-2 shell keeps live output while update waits, then upgrades saved d
       .getByRole("button", { name: "Blank screen", exact: true })
       .click();
     await expect(newOutput.locator(".blackout")).toBeVisible();
+    const headerUpdate = page.locator("header .header-update");
+    await expect(headerUpdate).toBeDisabled();
+    await page
+      .getByRole("button", { name: "End presentation", exact: true })
+      .click();
+    await expect(headerUpdate).toBeEnabled();
+    await page
+      .getByRole("button", { name: "Close setup", exact: true })
+      .click();
+    // Keep activation pending so the Updating state can be inspected before reload.
+    await page.evaluate(() => {
+      const original = ServiceWorker.prototype.postMessage;
+      ServiceWorker.prototype.postMessage = function (
+        message: any,
+        ...rest: any[]
+      ) {
+        if (message?.type === "SKIP_WAITING") return;
+        (original as any).apply(this, [message, ...rest]);
+      };
+    });
+    await headerUpdate.click();
+    await expect(headerUpdate).toHaveText("Updating…");
+    await expect(headerUpdate).toBeDisabled();
+    await expect(headerUpdate).toHaveAttribute("aria-busy", "true");
   } finally {
     await context.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));

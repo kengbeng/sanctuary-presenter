@@ -93,13 +93,12 @@ async function editSource(page: Page, words: string) {
     .locator(".library-row")
     .filter({ hasText: "Library worship" })
     .click();
+  await page.getByRole("button", { name: "Edit song", exact: true }).click();
   await page
     .locator(".content-editor")
     .getByRole("textbox", { name: "Primary text", exact: true })
     .fill(words);
-  await page
-    .getByRole("button", { name: "Save library item", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Save song", exact: true }).click();
   await expect(page.locator(".library-message")).toContainText(
     "Library master saved",
   );
@@ -257,6 +256,7 @@ test("a changed or deleted Library source disables a stale comparison and leaves
     .getByRole("button", { name: "Cancel comparison", exact: true })
     .click();
   expect(await readOrder(page, order.id)).toEqual(order);
+  await other.getByText("Song options", { exact: true }).click();
   other.once("dialog", (dialog) => dialog.accept());
   await other
     .getByRole("button", { name: "Delete library item", exact: true })

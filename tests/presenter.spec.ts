@@ -279,12 +279,14 @@ test("song controls distinguish repeated choruses and resume after an unplanned 
   const show = page.getByRole("button", { name: "Show slide", exact: true });
   await expect(show).toBeEnabled(); await show.click();
   await expect(output.getByText("Verse page 1", { exact: true })).toBeVisible();
+  await expect(page.locator(".mp-live-frame")).toContainText("Verse page 1");
   await secondChorus.click();
   await expect(output.getByText("Chorus page 1", { exact: true })).toBeVisible();
   await page.locator('[aria-label="Direct song sections"]').getByRole("button", { name: "Bridge", exact: true }).click();
   await expect(output.getByText("Bridge page 1", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Slide 2", exact: true }).click();
   await expect(output.getByText("Bridge page 2", { exact: true })).toBeVisible();
+  await expect(page.locator(".mp-live-frame")).toContainText("Bridge page 2");
   await page.getByRole("checkbox", { name: "Preview only", exact: true }).check();
   await secondChorus.click();
   await expect(preview).toContainText("Chorus page 1");
