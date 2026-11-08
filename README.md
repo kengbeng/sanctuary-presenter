@@ -1,6 +1,12 @@
-# Sanctuary Presenter v2 — 0.7.0-rc.5
+# Sanctuary Presenter v2 — 0.7.0-rc.6
 
 A local-first church presentation application for GitHub Pages. Services → Prepare → Review → Present provides independent service copies, bilingual songs, repeated sections, local media and a separate congregation window. This release candidate is for rehearsal. Automated checks do not replace the outstanding Safari/second-display, room-readability and participant checks listed in [release acceptance](docs/RELEASE_ACCEPTANCE.md).
+
+## Library navigation
+
+Search and browse songs in the persistent list, then inspect readable lyrics and section buttons alongside it. Choose **Edit song** to open the lyrics-first workspace with compact section buttons, slide tabs and large bilingual fields. Switch between **Lyrics**, **Song order** and **Details** without losing edits. Edit the title directly and use the persistent **Save song** or **Cancel** controls. Section settings, design and preview open when needed. **Add to service** creates an independent service copy; **Back to service** returns to the working service. Import is a primary action; backups, restore and maintenance are under **Library tools**. On smaller screens, **Back to songs** restores the filtered list and its scroll position.
+
+This rc.6 candidate includes the Library navigation and editor improvements.
 
 ## Prepare and present
 
