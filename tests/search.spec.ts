@@ -58,6 +58,7 @@ test("Library and Prepare share normalized search, bilingual excerpts and filter
   await search.fill("H 007");
   await expect(library.locator(".library-row")).toHaveCount(1);
   await search.fill("");
+  await library.getByText("Filters and sort", { exact: true }).click();
   await library
     .getByLabel("Search language", { exact: true })
     .selectOption("中文");

@@ -217,16 +217,31 @@ test("Library paste refuses a stale preview and saves only after explicit apply"
   await library
     .getByLabel("Library title", { exact: true })
     .fill("Library staging");
-  await library.getByText("Paste whole-song lyrics", { exact: true }).click();
+  await library
+    .getByRole("button", { name: "Paste whole-song lyrics", exact: true })
+    .click();
   await library
     .getByLabel("Primary lyrics to stage", { exact: true })
     .fill("[Verse]\nLibrary pasted words");
   await library
     .getByRole("button", { name: "Preview pasted lyrics", exact: true })
     .click();
+  await expect(
+    page.getByRole("dialog", { name: "Paste whole-song lyrics", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "docs/library-paste-dialog.png",
+    fullPage: true,
+  });
+  await library
+    .getByRole("button", { name: "Close paste window", exact: true })
+    .click();
   await library
     .getByLabel("Library title", { exact: true })
     .fill("Changed during staging");
+  await library
+    .getByRole("button", { name: /^Paste whole-song lyrics/ })
+    .click();
   await library
     .getByRole("button", { name: "Apply pasted lyrics", exact: true })
     .click();
@@ -235,7 +250,7 @@ test("Library paste refuses a stale preview and saves only after explicit apply"
     library.getByRole("textbox", { name: "Primary text", exact: true }),
   ).toHaveValue("");
   await expect(
-    library.getByRole("button", { name: "Save library item", exact: true }),
+    library.getByRole("button", { name: "Save song", exact: true }),
   ).toBeDisabled();
   await library
     .getByRole("button", { name: "Preview pasted lyrics", exact: true })
@@ -243,9 +258,7 @@ test("Library paste refuses a stale preview and saves only after explicit apply"
   await library
     .getByRole("button", { name: "Apply pasted lyrics", exact: true })
     .click();
-  await library
-    .getByRole("button", { name: "Save library item", exact: true })
-    .click();
+  await library.getByRole("button", { name: "Save song", exact: true }).click();
   await expect(page.locator(".library-message")).toContainText(
     "Library master saved",
   );
@@ -255,7 +268,60 @@ test("Library paste refuses a stale preview and saves only after explicit apply"
     .locator(".library-row")
     .filter({ hasText: "Changed during staging" })
     .click();
+  await page.getByRole("button", { name: "Edit song", exact: true }).click();
   await expect(
     library.getByRole("textbox", { name: "Primary text", exact: true }),
   ).toHaveValue("Library pasted words");
+});
+
+test("Library paste modal fades the background and retains drafts on dismiss", async ({
+  page,
+}) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await page.getByRole("button", { name: "New song", exact: true }).click();
+  const editor = page.locator(".content-editor");
+  const trigger = editor.getByRole("button", {
+    name: /^Paste whole-song lyrics/,
+  });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", {
+    name: "Paste whole-song lyrics",
+    exact: true,
+  });
+  await expect(dialog).toBeVisible();
+  await expect(page.locator("dialog:modal")).toHaveCount(1);
+  await expect(
+    dialog.getByLabel("Primary lyrics to stage", { exact: true }),
+  ).toBeFocused();
+  await dialog
+    .getByLabel("Primary lyrics to stage", { exact: true })
+    .fill("[Chorus]\nRetain these words");
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+  await expect(
+    editor.getByRole("button", { name: "Save song", exact: true }),
+  ).toBeDisabled();
+  await trigger.click();
+  await expect(
+    dialog.getByLabel("Primary lyrics to stage", { exact: true }),
+  ).toHaveValue("[Chorus]\nRetain these words");
+  await dialog
+    .getByRole("button", { name: "Cancel paste", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  await trigger.click();
+  await expect(
+    dialog.getByLabel("Primary lyrics to stage", { exact: true }),
+  ).toHaveValue("");
+  await page.setViewportSize({ width: 640, height: 480 });
+  const bounds = await dialog.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.width).toBeLessThanOrEqual(640);
+  expect(bounds!.height).toBeLessThanOrEqual(480);
+  await page.keyboard.press("Escape");
+  await expect(
+    editor.getByRole("button", { name: "Save song", exact: true }),
+  ).toBeEnabled();
 });

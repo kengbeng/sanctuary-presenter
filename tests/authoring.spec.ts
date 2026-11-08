@@ -144,24 +144,23 @@ test("structural edits persist bilingual copies, preserve custom repeats and kee
     .locator(".library-row")
     .filter({ hasText: "Structured worship" })
     .click();
+  await page.getByRole("button", { name: "Edit song", exact: true }).click();
   const library = page.locator(".content-editor");
   await expect(
     library.getByRole("textbox", { name: "Primary text", exact: true }),
   ).toHaveValue("Original verse");
   await expect(
     library
-      .getByRole("combobox", { name: "Slide in section", exact: true })
-      .locator("option"),
+      .getByRole("navigation", { name: "Section slides" })
+      .locator(".editor-reorder-select"),
   ).toHaveCount(1);
-  await library.getByText("Section options · Verse 1", { exact: true }).click();
+  await library.getByLabel("Manage Verse 1", { exact: true }).click();
   await library
     .getByRole("button", { name: "Duplicate section", exact: true })
     .click();
   await expect(
     library.getByLabel("Section label", { exact: true }),
   ).toHaveValue("Verse 1 (copy)");
-  await library
-    .getByRole("button", { name: "Save library item", exact: true })
-    .click();
+  await library.getByRole("button", { name: "Save song", exact: true }).click();
   await expect(page.locator(".library-message")).toContainText("saved");
 });
