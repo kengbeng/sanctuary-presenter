@@ -776,6 +776,12 @@ function Operator() {
       if (m.type === "CANCELLED" && waiter && waiter.id === m.frameId)
         waiter.done(m);
       if (m.type === "READY") {
+        // A recovered output has rendered black. Resolve any blank request
+        // awaiting acknowledgement from the retired document.
+        if (m.blank && m.rendered) {
+          blankIntent.current = false;
+          setBlankPending(false);
+        }
         setCueReady(!!m.cue);
         setFull(!!m.fullscreen);
         change("READY");
